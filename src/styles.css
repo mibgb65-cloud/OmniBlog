@@ -41,7 +41,26 @@
 }
 
 html {
+  overflow-y: scroll;
   scroll-behavior: smooth;
+  scrollbar-color: transparent transparent;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+
+html::-webkit-scrollbar {
+  width: 12px;
+}
+
+html::-webkit-scrollbar-track,
+html::-webkit-scrollbar-thumb {
+  background: transparent;
+}
+
+html::-webkit-scrollbar-thumb:hover {
+  border: 3px solid transparent;
+  background: color-mix(in srgb, var(--text) 24%, transparent);
+  background-clip: content-box;
 }
 
 body {
