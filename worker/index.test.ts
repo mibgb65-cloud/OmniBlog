@@ -3,7 +3,8 @@ import { Miniflare } from "miniflare";
 import initialMigration from "../migrations/0001_initial.sql?raw";
 import hardeningMigration from "../migrations/0002_owner_and_auth_limits.sql?raw";
 import categoryMigration from "../migrations/0004_add_post_categories.sql?raw";
-import type { Post } from "../shared/types";
+import categoriesMigration from "../migrations/0005_create_categories.sql?raw";
+import type { Category, Post } from "../shared/types";
 import app, { type Bindings } from "./index";
 import {
   createSessionToken,
@@ -22,7 +23,7 @@ let bindings: Bindings;
 async function applyMigration(sql: string) {
   const statements = sql
     .trim()
-    .split(/;\s*(?=(?:PRAGMA|CREATE)\b|$)/i)
+    .split(/;\s*(?=(?:PRAGMA|CREATE|ALTER|INSERT|DELETE)\b|$)/i)
     .map((statement) => statement.trim())
     .filter(Boolean);
   for (const statement of statements) {
@@ -40,6 +41,7 @@ beforeEach(async () => {
   database = (await miniflare.getD1Database("DB")) as unknown as D1Database;
   await applyMigration(initialMigration);
   await applyMigration(categoryMigration);
+  await applyMigration(categoriesMigration);
   bindings = {
     DB: database,
     ASSETS: {
@@ -233,14 +235,14 @@ describe("post authorization and lifecycle", () => {
       headers: { ...JSON_HEADERS, Cookie: ownerCookie },
       body: JSON.stringify({
         title: "Published notes",
-        category: "观察",
+        category: "生活",
         content: "The owner can publish the original private draft.",
         status: "published",
       }),
     });
     expect(published.status).toBe(200);
     const publicPost = (await published.json() as { data: Post }).data;
-    expect(publicPost.category).toBe("观察");
+    expect(publicPost.category).toBe("生活");
 
     const visiblePost = await request(`/api/posts/${publicPost.slug}`);
     expect(visiblePost.status).toBe(200);
@@ -257,6 +259,96 @@ describe("post authorization and lifecycle", () => {
     });
     expect(ownerDelete.status).toBe(200);
     expect((await request(`/api/posts/${publicPost.slug}`)).status).toBe(404);
+  });
+});
+
+describe("category management", () => {
+  it("provides presets and keeps category changes consistent with posts", async () => {
+    await database.prepare("DROP TABLE categories").run();
+    const publicCategories = await request("/api/categories");
+    expect(publicCategories.status).toBe(200);
+    expect(
+      ((await publicCategories.json()) as { data: Category[] }).data.map(
+        (category) => category.name,
+      ),
+    ).toEqual(["随笔", "技术", "生活", "读书", "项目"]);
+
+    const unauthorized = await request("/api/me/categories");
+    expect(unauthorized.status).toBe(401);
+
+    await seedUser("owner", "Owner", "owner@example.com", "owner password");
+    const ownerCookie = await sessionCookie("owner");
+    const created = await request("/api/me/categories", {
+      method: "POST",
+      headers: { ...JSON_HEADERS, Cookie: ownerCookie },
+      body: JSON.stringify({ name: "观察" }),
+    });
+    expect(created.status).toBe(201);
+    const category = ((await created.json()) as { data: Category }).data;
+    expect(category).toMatchObject({ name: "观察", postCount: 0 });
+
+    const duplicate = await request("/api/me/categories", {
+      method: "POST",
+      headers: { ...JSON_HEADERS, Cookie: ownerCookie },
+      body: JSON.stringify({ name: "观察" }),
+    });
+    expect(duplicate.status).toBe(409);
+
+    const unknownCategory = await request("/api/me/posts", {
+      method: "POST",
+      headers: { ...JSON_HEADERS, Cookie: ownerCookie },
+      body: JSON.stringify({
+        title: "Unknown category",
+        category: "不存在",
+        content: "Unknown categories must be rejected.",
+        status: "draft",
+      }),
+    });
+    expect(unknownCategory.status).toBe(400);
+
+    const createdPost = await request("/api/me/posts", {
+      method: "POST",
+      headers: { ...JSON_HEADERS, Cookie: ownerCookie },
+      body: JSON.stringify({
+        title: "Observed notes",
+        category: "观察",
+        content: "A post connected to a managed category.",
+        status: "draft",
+      }),
+    });
+    const post = ((await createdPost.json()) as { data: Post }).data;
+
+    const renamed = await request(`/api/me/categories/${category.id}`, {
+      method: "PUT",
+      headers: { ...JSON_HEADERS, Cookie: ownerCookie },
+      body: JSON.stringify({ name: "见闻" }),
+    });
+    expect(renamed.status).toBe(200);
+    expect(((await renamed.json()) as { data: Category }).data).toMatchObject({
+      name: "见闻",
+      postCount: 1,
+    });
+
+    const updatedPost = await request(`/api/me/posts/${post.id}`, {
+      headers: { Cookie: ownerCookie },
+    });
+    expect(((await updatedPost.json()) as { data: Post }).data.category).toBe("见闻");
+
+    const inUse = await request(`/api/me/categories/${category.id}`, {
+      method: "DELETE",
+      headers: { Cookie: ownerCookie },
+    });
+    expect(inUse.status).toBe(409);
+
+    await request(`/api/me/posts/${post.id}`, {
+      method: "DELETE",
+      headers: { Cookie: ownerCookie },
+    });
+    const removed = await request(`/api/me/categories/${category.id}`, {
+      method: "DELETE",
+      headers: { Cookie: ownerCookie },
+    });
+    expect(removed.status).toBe(200);
   });
 });
 

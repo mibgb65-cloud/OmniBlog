@@ -1,7 +1,7 @@
 import { ArrowLeft, Check, FileUp, Send } from "lucide-react";
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import type { Post, PostStatus } from "../../shared/types";
+import type { Category, Post, PostStatus } from "../../shared/types";
 import { Loading } from "../components/Loading";
 import { api } from "../lib/api";
 import { parseMarkdownImport } from "../lib/markdown";
@@ -12,8 +12,9 @@ export function EditorPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("随笔");
+  const [categories, setCategories] = useState<Category[]>([]);
   const [content, setContent] = useState("");
-  const [loading, setLoading] = useState(Boolean(id));
+  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState<PostStatus | null>(null);
   const [error, setError] = useState("");
   const [savedDraft, setSavedDraft] = useState({ title: "", category: "随笔", content: "" });
@@ -23,9 +24,22 @@ export function EditorPage() {
     content !== savedDraft.content;
 
   useEffect(() => {
-    if (!id) return;
-    api<Post>(`/api/me/posts/${id}`)
-      .then((post) => {
+    const postRequest = id
+      ? api<Post>(`/api/me/posts/${id}`)
+      : Promise.resolve<Post | null>(null);
+
+    Promise.all([api<Category[]>("/api/categories"), postRequest])
+      .then(([nextCategories, post]) => {
+        setCategories(nextCategories);
+        if (!post) {
+          const initialCategory =
+            nextCategories.find((item) => item.name === "随笔")?.name
+            ?? nextCategories[0]?.name
+            ?? "";
+          setCategory(initialCategory);
+          setSavedDraft({ title: "", category: initialCategory, content: "" });
+          return;
+        }
         const postCategory = post.category || "随笔";
         setTitle(post.title);
         setCategory(postCategory);
@@ -65,9 +79,20 @@ export function EditorPage() {
         setError("Markdown 文件的标题、分类或正文超过长度限制。");
         return;
       }
+      const importedCategory = imported.category
+        ? categories.find(
+          (item) => item.name.localeCompare(imported.category!, "zh-CN", {
+            sensitivity: "accent",
+          }) === 0,
+        )
+        : null;
+      if (imported.category && !importedCategory) {
+        setError(`分类“${imported.category}”尚未创建，请先在后台添加。`);
+        return;
+      }
       setTitle(imported.title);
       setContent(imported.content);
-      if (imported.category) setCategory(imported.category);
+      if (importedCategory) setCategory(importedCategory.name);
       setError("");
     } catch {
       setError("无法读取这个 Markdown 文件，请确认文件编码为 UTF-8。");
@@ -160,16 +185,17 @@ export function EditorPage() {
         <div className="editor-meta">
           <label htmlFor="category">
             <span>分类</span>
-            <input
+            <select
               id="category"
               name="category"
               value={category}
               onChange={(event) => setCategory(event.target.value)}
-              autoComplete="off"
-              maxLength={24}
-              placeholder="随笔"
               required
-            />
+            >
+              {categories.map((item) => (
+                <option value={item.name} key={item.id}>{item.name}</option>
+              ))}
+            </select>
           </label>
           <span>{content.replace(/\s/g, "").length} 字 · 支持 Markdown</span>
         </div>

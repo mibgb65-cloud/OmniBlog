@@ -29,6 +29,14 @@ export type PostInput = {
   status: PostStatus;
 };
 
+export type Category = {
+  id: string;
+  name: string;
+  sortOrder: number;
+  postCount: number;
+  createdAt: string;
+};
+
 export type RegistrationStatus = {
   open: boolean;
   configured: boolean;

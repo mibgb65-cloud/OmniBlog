@@ -1,7 +1,7 @@
 import { ArrowDown } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import type { Post } from "../../shared/types";
+import type { Category, Post } from "../../shared/types";
 import { Loading } from "../components/Loading";
 import { PostCard } from "../components/PostCard";
 import { api } from "../lib/api";
@@ -9,25 +9,24 @@ import { api } from "../lib/api";
 export function HomePage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [posts, setPosts] = useState<Post[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    api<Post[]>("/api/posts")
-      .then(setPosts)
+    Promise.all([
+      api<Post[]>("/api/posts"),
+      api<Category[]>("/api/categories"),
+    ])
+      .then(([nextPosts, nextCategories]) => {
+        setPosts(nextPosts);
+        setCategories(nextCategories);
+      })
       .catch((reason: Error) => setError(reason.message))
       .finally(() => setLoading(false));
   }, []);
 
   const selectedCategory = searchParams.get("category") ?? "";
-  const categories = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const post of posts) {
-      const category = post.category || "随笔";
-      counts.set(category, (counts.get(category) ?? 0) + 1);
-    }
-    return [...counts.entries()].sort(([left], [right]) => left.localeCompare(right, "zh-CN"));
-  }, [posts]);
   const filteredPosts = selectedCategory
     ? posts.filter((post) => (post.category || "随笔") === selectedCategory)
     : posts;
@@ -53,16 +52,16 @@ export function HomePage() {
             <span>全部文章</span>
             <span>{posts.length}</span>
           </button>
-          {categories.map(([category, count]) => (
+          {categories.map((category) => (
             <button
-              className={selectedCategory === category ? "active" : ""}
+              className={selectedCategory === category.name ? "active" : ""}
               type="button"
-              aria-pressed={selectedCategory === category}
-              onClick={() => chooseCategory(category)}
-              key={category}
+              aria-pressed={selectedCategory === category.name}
+              onClick={() => chooseCategory(category.name)}
+              key={category.id}
             >
-              <span>{category}</span>
-              <span>{count}</span>
+              <span>{category.name}</span>
+              <span>{category.postCount}</span>
             </button>
           ))}
         </nav>

@@ -1,6 +1,6 @@
 import { Hono, type Context, type MiddlewareHandler } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
-import type { PostInput, PostStatus, User } from "../shared/types";
+import type { Category, PostInput, PostStatus, User } from "../shared/types";
 import {
   createSessionToken,
   hashPassword,
@@ -48,12 +48,21 @@ type PostRow = {
   published_at: string | null;
 };
 
+type CategoryRow = {
+  id: string;
+  name: string;
+  sort_order: number;
+  post_count: number;
+  created_at: string;
+};
+
 const SESSION_COOKIE = "monolog_session";
 const LOGIN_LIMIT = 10;
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const REGISTER_LIMIT = 5;
 const REGISTER_WINDOW_MS = 60 * 60 * 1000;
 const app = new Hono<AppEnv>();
+const categoryInitialization = new WeakMap<D1Database, Promise<void>>();
 
 const toUser = (row: UserRow): User => ({
   id: row.id,
@@ -75,6 +84,14 @@ const toPost = (row: PostRow) => ({
   createdAt: row.created_at,
   updatedAt: row.updated_at,
   publishedAt: row.published_at,
+});
+
+const toCategory = (row: CategoryRow): Category => ({
+  id: row.id,
+  name: row.name,
+  sortOrder: row.sort_order,
+  postCount: Number(row.post_count),
+  createdAt: row.created_at,
 });
 
 function jsonError(c: Context<AppEnv>, message: string) {
@@ -130,6 +147,62 @@ function validatePost(body: Record<string, unknown> | null): PostInput | { error
   }
 
   return { title, category, content, status };
+}
+
+function validateCategory(
+  body: Record<string, unknown> | null,
+): { name: string } | { error: string } {
+  const name = typeof body?.name === "string" ? body.name.trim() : "";
+  if (name.length < 1 || name.length > 24) {
+    return { error: "分类名称需为 1–24 个字符。" };
+  }
+  return { name };
+}
+
+async function categoryExists(database: D1Database, name: string) {
+  await ensureCategories(database);
+  return Boolean(
+    await database.prepare("SELECT id FROM categories WHERE name = ? COLLATE NOCASE")
+      .bind(name)
+      .first(),
+  );
+}
+
+async function ensureCategories(database: D1Database) {
+  const active = categoryInitialization.get(database);
+  if (active) return active;
+
+  const initialization = (async () => {
+    await database.prepare(
+      `CREATE TABLE IF NOT EXISTS categories (
+         id TEXT PRIMARY KEY,
+         name TEXT NOT NULL COLLATE NOCASE UNIQUE,
+         sort_order INTEGER NOT NULL DEFAULT 0,
+         created_at TEXT NOT NULL DEFAULT (datetime('now'))
+       )`,
+    ).run();
+    await database.prepare(
+      `INSERT OR IGNORE INTO categories (id, name, sort_order) VALUES
+         ('category-essay', '随笔', 10),
+         ('category-tech', '技术', 20),
+         ('category-life', '生活', 30),
+         ('category-reading', '读书', 40),
+         ('category-project', '项目', 50)`,
+    ).run();
+    await database.prepare(
+      `INSERT OR IGNORE INTO categories (id, name, sort_order)
+       SELECT 'category-' || lower(hex(randomblob(8))), category, 1000
+       FROM posts
+       WHERE trim(category) <> ''
+       GROUP BY category`,
+    ).run();
+  })().catch((error) => {
+    categoryInitialization.delete(database);
+    throw error;
+  });
+
+  categoryInitialization.set(database, initialization);
+  return initialization;
 }
 
 function makeExcerpt(content: string): string {
@@ -336,6 +409,19 @@ app.get("/api/auth/me", async (c) => {
   return c.json({ data: user });
 });
 
+app.get("/api/categories", async (c) => {
+  await ensureCategories(c.env.DB);
+  const result = await c.env.DB.prepare(
+    `SELECT categories.*, COUNT(posts.id) AS post_count
+     FROM categories
+     LEFT JOIN posts
+       ON posts.category = categories.name AND posts.status = 'published'
+     GROUP BY categories.id
+     ORDER BY categories.sort_order, categories.created_at`,
+  ).all<CategoryRow>();
+  return c.json({ data: result.results.map(toCategory) });
+});
+
 app.get("/api/posts", async (c) => {
   const result = await c.env.DB.prepare(
     `SELECT posts.*, users.name AS author_name
@@ -362,6 +448,107 @@ app.get("/api/posts/:slug", async (c) => {
 });
 
 app.use("/api/me/*", requireUser);
+
+app.get("/api/me/categories", async (c) => {
+  await ensureCategories(c.env.DB);
+  const result = await c.env.DB.prepare(
+    `SELECT categories.*, COUNT(posts.id) AS post_count
+     FROM categories
+     LEFT JOIN posts ON posts.category = categories.name
+     GROUP BY categories.id
+     ORDER BY categories.sort_order, categories.created_at`,
+  ).all<CategoryRow>();
+  return c.json({ data: result.results.map(toCategory) });
+});
+
+app.post("/api/me/categories", async (c) => {
+  const input = validateCategory(await readJson(c));
+  if ("error" in input) return jsonError(c, input.error);
+  if (await categoryExists(c.env.DB, input.name)) {
+    return c.json({ error: "这个分类已经存在。" }, 409);
+  }
+
+  const order = await c.env.DB.prepare(
+    "SELECT COALESCE(MAX(sort_order), 0) + 10 AS next_order FROM categories",
+  ).first<{ next_order: number }>();
+  const id = crypto.randomUUID();
+  await c.env.DB.prepare(
+    "INSERT INTO categories (id, name, sort_order) VALUES (?, ?, ?)",
+  )
+    .bind(id, input.name, order?.next_order ?? 10)
+    .run();
+
+  const row = await c.env.DB.prepare(
+    "SELECT *, 0 AS post_count FROM categories WHERE id = ?",
+  )
+    .bind(id)
+    .first<CategoryRow>();
+  return c.json({ data: toCategory(row!) }, 201);
+});
+
+app.put("/api/me/categories/:id", async (c) => {
+  await ensureCategories(c.env.DB);
+  const input = validateCategory(await readJson(c));
+  if ("error" in input) return jsonError(c, input.error);
+
+  const existing = await c.env.DB.prepare("SELECT * FROM categories WHERE id = ?")
+    .bind(c.req.param("id"))
+    .first<Omit<CategoryRow, "post_count">>();
+  if (!existing) return c.json({ error: "没有找到这个分类。" }, 404);
+
+  const duplicate = await c.env.DB.prepare(
+    "SELECT id FROM categories WHERE name = ? COLLATE NOCASE AND id <> ?",
+  )
+    .bind(input.name, existing.id)
+    .first();
+  if (duplicate) return c.json({ error: "这个分类已经存在。" }, 409);
+
+  await c.env.DB.batch([
+    c.env.DB.prepare("UPDATE posts SET category = ? WHERE category = ?")
+      .bind(input.name, existing.name),
+    c.env.DB.prepare("UPDATE categories SET name = ? WHERE id = ?")
+      .bind(input.name, existing.id),
+  ]);
+
+  const row = await c.env.DB.prepare(
+    `SELECT categories.*, COUNT(posts.id) AS post_count
+     FROM categories
+     LEFT JOIN posts ON posts.category = categories.name
+     WHERE categories.id = ?
+     GROUP BY categories.id`,
+  )
+    .bind(existing.id)
+    .first<CategoryRow>();
+  return c.json({ data: toCategory(row!) });
+});
+
+app.delete("/api/me/categories/:id", async (c) => {
+  await ensureCategories(c.env.DB);
+  const category = await c.env.DB.prepare(
+    `SELECT categories.*, COUNT(posts.id) AS post_count
+     FROM categories
+     LEFT JOIN posts ON posts.category = categories.name
+     WHERE categories.id = ?
+     GROUP BY categories.id`,
+  )
+    .bind(c.req.param("id"))
+    .first<CategoryRow>();
+  if (!category) return c.json({ error: "没有找到这个分类。" }, 404);
+  if (Number(category.post_count) > 0) {
+    return c.json({ error: "该分类仍有文章，请先调整文章分类。" }, 409);
+  }
+
+  const total = await c.env.DB.prepare("SELECT COUNT(*) AS count FROM categories")
+    .first<{ count: number }>();
+  if (Number(total?.count ?? 0) <= 1) {
+    return c.json({ error: "至少需要保留一个分类。" }, 409);
+  }
+
+  await c.env.DB.prepare("DELETE FROM categories WHERE id = ?")
+    .bind(category.id)
+    .run();
+  return c.json({ data: true });
+});
 
 app.get("/api/me/posts", async (c) => {
   const result = await c.env.DB.prepare(
@@ -392,6 +579,9 @@ app.get("/api/me/posts/:id", async (c) => {
 app.post("/api/me/posts", async (c) => {
   const input = validatePost(await readJson(c));
   if ("error" in input) return jsonError(c, input.error);
+  if (!(await categoryExists(c.env.DB, input.category))) {
+    return jsonError(c, "请选择已创建的分类。");
+  }
 
   let slug = slugify(input.title);
   const duplicate = await c.env.DB.prepare("SELECT id FROM posts WHERE slug = ?")
@@ -433,6 +623,9 @@ app.post("/api/me/posts", async (c) => {
 app.put("/api/me/posts/:id", async (c) => {
   const input = validatePost(await readJson(c));
   if ("error" in input) return jsonError(c, input.error);
+  if (!(await categoryExists(c.env.DB, input.category))) {
+    return jsonError(c, "请选择已创建的分类。");
+  }
 
   const existing = await c.env.DB.prepare(
     "SELECT id, status, published_at FROM posts WHERE id = ? AND author_id = ?",
