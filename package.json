@@ -6,7 +6,7 @@
   "scripts": {
     "build": "vite build",
     "dev": "npm run build && wrangler dev",
-    "deploy": "npm run db:migrate:remote && npm run build && wrangler deploy",
+    "deploy": "npm run build && wrangler deploy && npm run db:migrate:remote",
     "db:migrate": "wrangler d1 migrations apply DB --local",
     "db:migrate:remote": "wrangler d1 migrations apply DB --remote --x-auto-create",
     "test": "vitest run",

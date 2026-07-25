@@ -30,8 +30,8 @@ npm run dev
    - Build command：`npm test && npm run typecheck`
    - Deploy command：`npm run deploy`
 
-   `npm run deploy` 会自动创建并绑定 D1（首次部署）、应用尚未执行的远程迁移、构建前端
-   并部署 Worker。D1 的资源 ID 由 Cloudflare 保存，不需要提交到 GitHub。
+   `npm run deploy` 会构建并部署 Worker、自动创建和绑定 D1（首次部署），随后应用尚未执行
+   的远程迁移。D1 的资源 ID 由 Cloudflare 保存，不需要提交到 GitHub。
 
 3. 在 Worker 的 Variables and Secrets 设置中添加加密 Secret：
    `OWNER_SETUP_TOKEN`。使用足够长的随机值，不要把真实值提交到 GitHub。
