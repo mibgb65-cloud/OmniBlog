@@ -27,3 +27,7 @@ export type PostInput = {
   status: PostStatus;
 };
 
+export type RegistrationStatus = {
+  open: boolean;
+  configured: boolean;
+};

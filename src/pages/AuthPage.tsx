@@ -1,6 +1,9 @@
 import { ArrowRight, Eye, EyeOff } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
+import type { RegistrationStatus } from "../../shared/types";
+import { Loading } from "../components/Loading";
+import { api } from "../lib/api";
 import { useAuth } from "../lib/auth";
 
 export function AuthPage({ mode }: { mode: "login" | "register" }) {
@@ -10,12 +13,28 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [setupToken, setSetupToken] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [registration, setRegistration] = useState<RegistrationStatus | null>(null);
+  const [checkingRegistration, setCheckingRegistration] = useState(mode === "register");
   const isLogin = mode === "login";
 
+  useEffect(() => {
+    if (isLogin) {
+      setCheckingRegistration(false);
+      return;
+    }
+    setCheckingRegistration(true);
+    api<RegistrationStatus>("/api/auth/registration")
+      .then(setRegistration)
+      .catch((reason: Error) => setError(reason.message))
+      .finally(() => setCheckingRegistration(false));
+  }, [isLogin]);
+
   if (user) return <Navigate to="/dashboard" replace />;
+  if (checkingRegistration) return <Loading label="正在确认站点状态" />;
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -23,7 +42,7 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
     setError("");
     try {
       if (isLogin) await login({ email, password });
-      else await register({ name, email, password });
+      else await register({ name, email, password, setupToken });
       const destination = (location.state as { from?: string } | null)?.from ?? "/dashboard";
       navigate(destination, { replace: true });
     } catch (reason) {
@@ -33,15 +52,38 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
     }
   };
 
+  if (!isLogin && registration && (!registration.open || !registration.configured)) {
+    return (
+      <section className="auth-wrap section">
+        <div className="auth-intro">
+          <span className="section-index">MonoLog</span>
+          <h1>{registration.open ? "还差一项配置。" : "站点已经准备好了。"}</h1>
+          <p>
+            {registration.open
+              ? "请先为 Worker 配置 OWNER_SETUP_TOKEN，再创建唯一的站长账号。"
+              : "初始化注册已经关闭，请使用已有的站长账号登录。"}
+          </p>
+        </div>
+        <div className="auth-card">
+          <h2>{registration.open ? "需要初始化密钥" : "仅限站长登录"}</h2>
+          <Link className="button button-primary form-submit" to="/login">
+            前往登录
+            <ArrowRight size={17} />
+          </Link>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="auth-wrap section">
       <div className="auth-intro">
-        <span className="section-index">{isLogin ? "欢迎回来" : "加入 MonoLog"}</span>
-        <h1>{isLogin ? "继续写下去。" : "从第一句话开始。"}</h1>
+        <span className="section-index">{isLogin ? "欢迎回来" : "初始化 MonoLog"}</span>
+        <h1>{isLogin ? "继续写下去。" : "创建站长账号。"}</h1>
         <p>
           {isLogin
             ? "登录后继续管理、编辑和发布你的文章。"
-            : "创建你的写作空间，草稿和已发布文章都由你掌控。"}
+            : "这个入口只开放一次。完成后，站点将关闭注册。"}
         </p>
       </div>
 
@@ -49,28 +91,43 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
         <div className="form-heading">
           <h2>{isLogin ? "登录" : "注册"}</h2>
           <p>
-            {isLogin ? "还没有账号？" : "已经有账号？"}
+            {isLogin ? "首次配置站点？" : "已经有账号？"}
             <Link to={isLogin ? "/register" : "/login"}>
-              {isLogin ? "立即注册" : "直接登录"}
+              {isLogin ? "初始化站长" : "直接登录"}
             </Link>
           </p>
         </div>
 
         {!isLogin && (
-          <label className="field" htmlFor="name">
-            <span>昵称</span>
-            <input
-              id="name"
-              name="name"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              minLength={2}
-              maxLength={32}
-              autoComplete="name"
-              placeholder="你希望被如何称呼"
-              required
-            />
-          </label>
+          <>
+            <label className="field" htmlFor="setup-token">
+              <span>初始化密钥</span>
+              <input
+                id="setup-token"
+                name="setup-token"
+                type="password"
+                value={setupToken}
+                onChange={(event) => setSetupToken(event.target.value)}
+                autoComplete="off"
+                placeholder="OWNER_SETUP_TOKEN"
+                required
+              />
+            </label>
+            <label className="field" htmlFor="name">
+              <span>昵称</span>
+              <input
+                id="name"
+                name="name"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                minLength={2}
+                maxLength={32}
+                autoComplete="name"
+                placeholder="你希望被如何称呼"
+                required
+              />
+            </label>
+          </>
         )}
         <label className="field" htmlFor="email">
           <span>邮箱</span>
@@ -112,12 +169,13 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
 
         {error && <div className="message message-error">{error}</div>}
         <button className="button button-primary form-submit" type="submit" disabled={submitting}>
-          {submitting ? "请稍候…" : isLogin ? "登录" : "创建账号"}
+          {submitting ? "请稍候…" : isLogin ? "登录" : "创建站长账号"}
           {!submitting && <ArrowRight size={17} />}
         </button>
-        <p className="form-note">继续即表示你同意妥善、真实地使用这个写作空间。</p>
+        <p className="form-note">
+          {isLogin ? "登录会话会安全保存在 HttpOnly Cookie 中。" : "初始化完成后，此注册入口会自动关闭。"}
+        </p>
       </form>
     </section>
   );
 }
-

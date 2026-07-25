@@ -11,7 +11,7 @@ type AuthContextValue = {
   user: User | null;
   loading: boolean;
   login: (credentials: Credentials) => Promise<void>;
-  register: (details: Credentials & { name: string }) => Promise<void>;
+  register: (details: Credentials & { name: string; setupToken: string }) => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -64,4 +64,3 @@ export function useAuth() {
   if (!context) throw new Error("useAuth must be used within AuthProvider");
   return context;
 }
-

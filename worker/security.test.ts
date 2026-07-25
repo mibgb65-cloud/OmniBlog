@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hashPassword, slugify, verifyPassword } from "./security";
+import { hashPassword, slugify, verifyPassword, verifySecret } from "./security";
 
 describe("password security", () => {
   it("verifies the correct password and rejects a wrong one", async () => {
@@ -19,3 +19,9 @@ describe("slugify", () => {
   });
 });
 
+describe("secret verification", () => {
+  it("compares setup secrets without exposing their digest", async () => {
+    await expect(verifySecret("owner-setup-secret", "owner-setup-secret")).resolves.toBe(true);
+    await expect(verifySecret("wrong-secret", "owner-setup-secret")).resolves.toBe(false);
+  });
+});

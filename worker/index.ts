@@ -7,12 +7,14 @@ import {
   hashSessionToken,
   sessionExpiry,
   slugify,
+  verifySecret,
   verifyPassword,
 } from "./security";
 
-type Bindings = {
+export type Bindings = {
   DB: D1Database;
   ASSETS: Fetcher;
+  OWNER_SETUP_TOKEN?: string;
 };
 
 type Variables = {
@@ -46,6 +48,10 @@ type PostRow = {
 };
 
 const SESSION_COOKIE = "monolog_session";
+const LOGIN_LIMIT = 10;
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const REGISTER_LIMIT = 5;
+const REGISTER_WINDOW_MS = 60 * 60 * 1000;
 const app = new Hono<AppEnv>();
 
 const toUser = (row: UserRow): User => ({
@@ -125,6 +131,58 @@ function makeExcerpt(content: string): string {
   return clean.length > 140 ? `${clean.slice(0, 140)}…` : clean;
 }
 
+async function rateLimitKey(c: Context<AppEnv>, scope: string): Promise<string> {
+  const address = c.req.header("CF-Connecting-IP") ?? "local";
+  return hashSessionToken(`${scope}:${address}`);
+}
+
+async function consumeAuthAttempt(
+  c: Context<AppEnv>,
+  scope: string,
+  limit: number,
+  windowMs: number,
+) {
+  const key = await rateLimitKey(c, scope);
+  const now = Date.now();
+  const nextReset = now + windowMs;
+  await c.env.DB.prepare("DELETE FROM auth_rate_limits WHERE reset_at <= ?")
+    .bind(now)
+    .run();
+  const row = await c.env.DB.prepare(
+    `INSERT INTO auth_rate_limits (key, attempts, reset_at)
+     VALUES (?, 1, ?)
+     ON CONFLICT(key) DO UPDATE SET
+       attempts = CASE
+         WHEN auth_rate_limits.reset_at <= ? THEN 1
+         ELSE auth_rate_limits.attempts + 1
+       END,
+       reset_at = CASE
+         WHEN auth_rate_limits.reset_at <= ? THEN ?
+         ELSE auth_rate_limits.reset_at
+       END
+     RETURNING attempts, reset_at`,
+  )
+    .bind(key, nextReset, now, now, nextReset)
+    .first<{ attempts: number; reset_at: number }>();
+
+  const resetAt = row?.reset_at ?? nextReset;
+  return {
+    allowed: (row?.attempts ?? limit + 1) <= limit,
+    retryAfter: Math.max(1, Math.ceil((resetAt - now) / 1000)),
+  };
+}
+
+async function clearAuthAttempts(c: Context<AppEnv>, scope: string) {
+  await c.env.DB.prepare("DELETE FROM auth_rate_limits WHERE key = ?")
+    .bind(await rateLimitKey(c, scope))
+    .run();
+}
+
+function rateLimitError(c: Context<AppEnv>, retryAfter: number) {
+  c.header("Retry-After", String(retryAfter));
+  return c.json({ error: "尝试次数过多，请稍后再试。" }, 429);
+}
+
 async function currentUser(c: Context<AppEnv>) {
   const token = getCookie(c, SESSION_COOKIE);
   if (!token) return null;
@@ -151,22 +209,47 @@ const requireUser: MiddlewareHandler<AppEnv> = async (c, next) => {
 
 app.get("/api/health", (c) => c.json({ ok: true }));
 
-app.post("/api/auth/register", async (c) => {
-  const input = validateCredentials(await readJson(c), true);
-  if ("error" in input) return jsonError(c, input.error);
+app.get("/api/auth/registration", async (c) => {
+  const owner = await c.env.DB.prepare("SELECT id FROM users LIMIT 1").first();
+  return c.json({
+    data: {
+      open: !owner,
+      configured: Boolean(c.env.OWNER_SETUP_TOKEN),
+    },
+  });
+});
 
-  const exists = await c.env.DB.prepare("SELECT id FROM users WHERE email = ?")
-    .bind(input.email)
-    .first();
-  if (exists) return c.json({ error: "该邮箱已注册。" }, 409);
+app.post("/api/auth/register", async (c) => {
+  const owner = await c.env.DB.prepare("SELECT id FROM users LIMIT 1").first();
+  if (owner) return c.json({ error: "站点已完成初始化，请直接登录。" }, 403);
+  if (!c.env.OWNER_SETUP_TOKEN) {
+    return c.json({ error: "站长初始化密钥尚未配置。" }, 503);
+  }
+
+  const rateLimit = await consumeAuthAttempt(c, "register", REGISTER_LIMIT, REGISTER_WINDOW_MS);
+  if (!rateLimit.allowed) return rateLimitError(c, rateLimit.retryAfter);
+
+  const body = await readJson(c);
+  const input = validateCredentials(body, true);
+  if ("error" in input) return jsonError(c, input.error);
+  const setupToken = typeof body?.setupToken === "string" ? body.setupToken : "";
+  if (!(await verifySecret(setupToken, c.env.OWNER_SETUP_TOKEN))) {
+    return c.json({ error: "初始化密钥不正确。" }, 403);
+  }
 
   const id = crypto.randomUUID();
   const passwordHash = await hashPassword(input.password);
-  await c.env.DB.prepare(
-    "INSERT INTO users (id, name, email, password_hash) VALUES (?, ?, ?, ?)",
-  )
-    .bind(id, input.name, input.email, passwordHash)
-    .run();
+  try {
+    await c.env.DB.prepare(
+      "INSERT INTO users (id, name, email, password_hash) VALUES (?, ?, ?, ?)",
+    )
+      .bind(id, input.name, input.email, passwordHash)
+      .run();
+  } catch (error) {
+    const initialized = await c.env.DB.prepare("SELECT id FROM users LIMIT 1").first();
+    if (initialized) return c.json({ error: "站点已完成初始化，请直接登录。" }, 403);
+    throw error;
+  }
 
   const token = createSessionToken();
   await c.env.DB.prepare("INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, ?)")
@@ -179,6 +262,7 @@ app.post("/api/auth/register", async (c) => {
     path: "/",
     maxAge: 30 * 24 * 60 * 60,
   });
+  await clearAuthAttempts(c, "register");
 
   const user = await c.env.DB.prepare(
     "SELECT id, name, email, created_at FROM users WHERE id = ?",
@@ -189,6 +273,9 @@ app.post("/api/auth/register", async (c) => {
 });
 
 app.post("/api/auth/login", async (c) => {
+  const rateLimit = await consumeAuthAttempt(c, "login", LOGIN_LIMIT, LOGIN_WINDOW_MS);
+  if (!rateLimit.allowed) return rateLimitError(c, rateLimit.retryAfter);
+
   const input = validateCredentials(await readJson(c), false);
   if ("error" in input) return jsonError(c, input.error);
 
@@ -214,6 +301,7 @@ app.post("/api/auth/login", async (c) => {
     path: "/",
     maxAge: 30 * 24 * 60 * 60,
   });
+  await clearAuthAttempts(c, "login");
   return c.json({ data: toUser(row) });
 });
 

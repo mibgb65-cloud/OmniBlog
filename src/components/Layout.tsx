@@ -58,13 +58,10 @@ export function Layout({ children }: { children: ReactNode }) {
               </button>
             </>
           ) : (
-            <>
-              <Link className="text-button desktop-only" to="/login">登录</Link>
-              <Link className="button button-primary compact" to="/register">
-                <PenLine size={16} className="mobile-only-icon" />
-                <span>开始写作</span>
-              </Link>
-            </>
+            <Link className="button button-primary compact" to="/login">
+              <PenLine size={16} className="mobile-only-icon" />
+              <span>站长登录</span>
+            </Link>
           )}
         </div>
       </header>

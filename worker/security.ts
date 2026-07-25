@@ -88,6 +88,21 @@ export async function hashSessionToken(token: string): Promise<string> {
   return bytesToHex(new Uint8Array(digest));
 }
 
+export async function verifySecret(value: string, expected: string): Promise<boolean> {
+  const [actualHash, expectedHash] = await Promise.all([
+    crypto.subtle.digest("SHA-256", encoder.encode(value)),
+    crypto.subtle.digest("SHA-256", encoder.encode(expected)),
+  ]);
+  const actual = new Uint8Array(actualHash);
+  const target = new Uint8Array(expectedHash);
+
+  let difference = 0;
+  for (let index = 0; index < actual.length; index += 1) {
+    difference |= actual[index] ^ target[index];
+  }
+  return difference === 0;
+}
+
 export function sessionExpiry(): number {
   return Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000;
 }
