@@ -20,25 +20,23 @@ npm run dev
 
 ## 通过 GitHub 部署到 Cloudflare
 
-1. 在 Cloudflare 控制台创建名为 `monolog-db` 的 D1 数据库，把数据库 UUID 填入
-   `wrangler.jsonc` 的 `database_id`，提交并推送到 GitHub 的 `main` 分支。
-
-2. 在 Workers & Pages 中选择 **Create application → Import a repository**，连接该 GitHub
+1. 在 Workers & Pages 中选择 **Create application → Import a repository**，连接该 GitHub
    仓库。Worker 名称必须为 `omni-blog`，与 `wrangler.jsonc` 中的 `name` 一致。
 
-3. 使用以下构建设置：
+2. 使用以下构建设置：
 
    - Production branch：`main`
    - Root directory：`/`
    - Build command：`npm test && npm run typecheck`
    - Deploy command：`npm run deploy`
 
-   `npm run deploy` 会依次应用尚未执行的远程 D1 迁移、构建前端并部署 Worker。
+   `npm run deploy` 会自动创建并绑定 D1（首次部署）、应用尚未执行的远程迁移、构建前端
+   并部署 Worker。D1 的资源 ID 由 Cloudflare 保存，不需要提交到 GitHub。
 
-4. 在 Worker 的 Variables and Secrets 设置中添加加密 Secret：
+3. 在 Worker 的 Variables and Secrets 设置中添加加密 Secret：
    `OWNER_SETUP_TOKEN`。使用足够长的随机值，不要把真实值提交到 GitHub。
 
-5. 首次部署完成后访问 `/register` 创建站长账号。确认可以登录后，在控制台删除
+4. 首次部署完成后访问 `/register` 创建站长账号。确认可以登录后，在控制台删除
    `OWNER_SETUP_TOKEN`；数据库会继续阻止创建第二个账号。
 
 ## 技术说明
