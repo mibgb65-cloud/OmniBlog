@@ -13,6 +13,7 @@ export type Post = {
   authorName: string;
   title: string;
   slug: string;
+  category: string;
   excerpt: string;
   content: string;
   status: PostStatus;
@@ -23,6 +24,7 @@ export type Post = {
 
 export type PostInput = {
   title: string;
+  category: string;
   content: string;
   status: PostStatus;
 };

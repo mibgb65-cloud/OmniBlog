@@ -1,6 +1,8 @@
 import { ArrowLeft } from "lucide-react";
 import { useEffect, useState } from "react";
+import Markdown from "react-markdown";
 import { Link, useParams } from "react-router-dom";
+import remarkGfm from "remark-gfm";
 import type { Post } from "../../shared/types";
 import { Loading } from "../components/Loading";
 import { api } from "../lib/api";
@@ -30,16 +32,6 @@ export function PostPage() {
   }
   if (!post) return <Loading label="正在打开文章" />;
 
-  const paragraphs = post.content
-    .split(/\n{2,}/)
-    .map((paragraph) => paragraph.trim())
-    .filter(Boolean);
-  const excerpt = post.excerpt.trim();
-  const comparableExcerpt = excerpt.replace(/[.…]+$/, "");
-  const showExcerpt = Boolean(
-    comparableExcerpt && !paragraphs[0]?.startsWith(comparableExcerpt),
-  );
-
   return (
     <article className="article section">
       <Link className="back-link" to="/">
@@ -48,18 +40,16 @@ export function PostPage() {
       </Link>
       <header className="article-header">
         <div className="article-meta">
+          <span>{post.category || "随笔"}</span>
           <span>{post.authorName}</span>
           <time dateTime={post.publishedAt ?? undefined}>{formatDate(post.publishedAt)}</time>
           <span>{readingTime(post.content)}</span>
         </div>
         <h1>{post.title}</h1>
-        {showExcerpt && <p>{excerpt}</p>}
       </header>
       <div className="article-rule" />
       <div className="article-content">
-        {paragraphs.map((paragraph, index) => (
-          <p key={`${index}-${paragraph.slice(0, 12)}`}>{paragraph}</p>
-        ))}
+        <Markdown remarkPlugins={[remarkGfm]} skipHtml>{post.content}</Markdown>
       </div>
       <footer className="article-end">
         <p>感谢你读到这里。</p>

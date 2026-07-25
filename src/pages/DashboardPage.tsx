@@ -80,9 +80,12 @@ export function DashboardPage() {
           {posts.map((post) => (
             <article className="post-row" key={post.id}>
               <div className="post-row-main">
-                <span className={`status-badge ${post.status}`}>
-                  {post.status === "published" ? "已发布" : "草稿"}
-                </span>
+                <div className="post-row-badges">
+                  <span className={`status-badge ${post.status}`}>
+                    {post.status === "published" ? "已发布" : "草稿"}
+                  </span>
+                  <span className="category-badge">{post.category || "随笔"}</span>
+                </div>
                 <h3>{post.title}</h3>
                 <p>更新于 {formatDate(post.updatedAt)}</p>
               </div>

@@ -12,7 +12,7 @@ export function PostCard({ post, featured = false }: { post: Post; featured?: bo
         aria-label={`阅读《${post.title}》`}
       >
         <div className="post-card-top">
-          <span>{post.authorName}</span>
+          <span className="post-category">{post.category || "随笔"}</span>
           <time dateTime={post.publishedAt ?? undefined}>{formatDate(post.publishedAt)}</time>
         </div>
         <div className="post-card-copy">
@@ -20,7 +20,7 @@ export function PostCard({ post, featured = false }: { post: Post; featured?: bo
           <p>{post.excerpt}</p>
         </div>
         <div className="post-card-bottom">
-          <span>{readingTime(post.content)}</span>
+          <span>{post.authorName} · {readingTime(post.content)}</span>
           <span className="read-more">
             阅读全文
             <ArrowUpRight size={17} aria-hidden="true" />

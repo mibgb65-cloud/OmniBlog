@@ -56,7 +56,7 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
     return (
       <section className="auth-wrap section">
         <div className="auth-intro">
-          <span className="section-index">MonoLog</span>
+          <span className="section-index">OmniBlog</span>
           <h1>{registration.open ? "还差一项配置。" : "站点已经准备好了。"}</h1>
           <p>
             {registration.open
@@ -78,7 +78,7 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
   return (
     <section className="auth-wrap section">
       <div className="auth-intro">
-        <span className="section-index">{isLogin ? "欢迎回来" : "初始化 MonoLog"}</span>
+        <span className="section-index">{isLogin ? "欢迎回来" : "初始化 OmniBlog"}</span>
         <h1>{isLogin ? "继续写下去。" : "创建站长账号。"}</h1>
         <p>
           {isLogin

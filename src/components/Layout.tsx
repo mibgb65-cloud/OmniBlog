@@ -11,6 +11,13 @@ export function Layout({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>(
     document.documentElement.dataset.theme === "dark" ? "dark" : "light",
   );
+  const [showIntro, setShowIntro] = useState(() => {
+    try {
+      return sessionStorage.getItem("monolog-intro-seen") !== "true";
+    } catch {
+      return true;
+    }
+  });
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -20,6 +27,17 @@ export function Layout({ children }: { children: ReactNode }) {
       ?.setAttribute("content", theme === "dark" ? "#0c0c0b" : "#f6f4ef");
   }, [theme]);
 
+  useEffect(() => {
+    if (!showIntro) return;
+    try {
+      sessionStorage.setItem("monolog-intro-seen", "true");
+    } catch {
+      // The animation can still play when session storage is unavailable.
+    }
+    const timer = window.setTimeout(() => setShowIntro(false), 1350);
+    return () => window.clearTimeout(timer);
+  }, [showIntro]);
+
   const handleLogout = async () => {
     await logout();
     navigate("/");
@@ -27,13 +45,23 @@ export function Layout({ children }: { children: ReactNode }) {
 
   return (
     <div className="site-shell">
+      {showIntro && (
+        <div className="intro-screen" aria-hidden="true">
+          <div className="intro-lockup">
+            <span className="intro-mark">O</span>
+            <span className="intro-name">OmniBlog</span>
+            <span className="intro-line" />
+            <span className="intro-copy">写下值得留下的想法</span>
+          </div>
+        </div>
+      )}
       <a className="skip-link" href="#main-content">
         跳到正文
       </a>
       <header className="topbar">
-        <Link className="brand" to="/" aria-label="MonoLog 首页">
-          <span className="brand-mark" aria-hidden="true">M</span>
-          <span>MonoLog</span>
+        <Link className="brand" to="/" aria-label="OmniBlog 首页">
+          <span className="brand-mark" aria-hidden="true">O</span>
+          <span>OmniBlog</span>
         </Link>
 
         <nav className="nav-links" aria-label="主导航">
@@ -75,8 +103,8 @@ export function Layout({ children }: { children: ReactNode }) {
 
       <footer className="footer">
         <Link className="brand footer-brand" to="/">
-          <span className="brand-mark" aria-hidden="true">M</span>
-          <span>MonoLog</span>
+          <span className="brand-mark" aria-hidden="true">O</span>
+          <span>OmniBlog</span>
         </Link>
         <p>留一点安静，写一些值得留下的东西。</p>
         <p>独立写作 · 保持简单</p>

@@ -19,28 +19,31 @@ function Protected({ children }: { children: React.ReactNode }) {
 }
 
 export function App() {
+  const location = useLocation();
+
   return (
     <Layout>
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/posts/:slug" element={<PostPage />} />
-        <Route path="/login" element={<AuthPage mode="login" />} />
-        <Route path="/register" element={<AuthPage mode="register" />} />
-        <Route
-          path="/dashboard"
-          element={<Protected><DashboardPage /></Protected>}
-        />
-        <Route
-          path="/write"
-          element={<Protected><EditorPage /></Protected>}
-        />
-        <Route
-          path="/write/:id"
-          element={<Protected><EditorPage /></Protected>}
-        />
-        <Route path="*" element={<NotFoundPage />} />
-      </Routes>
+      <div className="route-transition" key={location.pathname}>
+        <Routes location={location}>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/posts/:slug" element={<PostPage />} />
+          <Route path="/login" element={<AuthPage mode="login" />} />
+          <Route path="/register" element={<AuthPage mode="register" />} />
+          <Route
+            path="/dashboard"
+            element={<Protected><DashboardPage /></Protected>}
+          />
+          <Route
+            path="/write"
+            element={<Protected><EditorPage /></Protected>}
+          />
+          <Route
+            path="/write/:id"
+            element={<Protected><EditorPage /></Protected>}
+          />
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+      </div>
     </Layout>
   );
 }
-

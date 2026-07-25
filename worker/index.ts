@@ -39,6 +39,7 @@ type PostRow = {
   author_name: string;
   title: string;
   slug: string;
+  category: string;
   excerpt: string;
   content: string;
   status: PostStatus;
@@ -67,6 +68,7 @@ const toPost = (row: PostRow) => ({
   authorName: row.author_name,
   title: row.title,
   slug: row.slug,
+  category: row.category,
   excerpt: row.excerpt,
   content: row.content,
   status: row.status,
@@ -110,11 +112,15 @@ function validateCredentials(
 
 function validatePost(body: Record<string, unknown> | null): PostInput | { error: string } {
   const title = typeof body?.title === "string" ? body.title.trim() : "";
+  const category = typeof body?.category === "string" ? body.category.trim() : "随笔";
   const content = typeof body?.content === "string" ? body.content.trim() : "";
   const status = body?.status;
 
   if (title.length < 2 || title.length > 100) {
     return { error: "标题需为 2–100 个字符。" };
+  }
+  if (category.length < 1 || category.length > 24) {
+    return { error: "分类需为 1–24 个字符。" };
   }
   if (content.length < 10 || content.length > 50_000) {
     return { error: "正文需为 10–50,000 个字符。" };
@@ -123,11 +129,19 @@ function validatePost(body: Record<string, unknown> | null): PostInput | { error
     return { error: "文章状态无效。" };
   }
 
-  return { title, content, status };
+  return { title, category, content, status };
 }
 
 function makeExcerpt(content: string): string {
-  const clean = content.replace(/\s+/g, " ").trim();
+  const clean = content
+    .replace(/^---[\s\S]*?\r?\n---\r?\n?/, "")
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/!\[([^\]]*)\]\([^)]+\)/g, "$1")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/^(?:#{1,6}|>|[*+-]|\d+\.)\s+/gm, "")
+    .replace(/[`*_~]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
   return clean.length > 140 ? `${clean.slice(0, 140)}…` : clean;
 }
 
@@ -388,14 +402,17 @@ app.post("/api/me/posts", async (c) => {
   const id = crypto.randomUUID();
   const publishedAt = input.status === "published" ? new Date().toISOString() : null;
   await c.env.DB.prepare(
-    `INSERT INTO posts (id, author_id, title, slug, excerpt, content, status, published_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO posts (
+       id, author_id, title, slug, category, excerpt, content, status, published_at
+     )
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
     .bind(
       id,
       c.get("user").id,
       input.title,
       slug,
+      input.category,
       makeExcerpt(input.content),
       input.content,
       input.status,
@@ -428,11 +445,13 @@ app.put("/api/me/posts/:id", async (c) => {
     input.status === "published" ? existing.published_at ?? new Date().toISOString() : null;
   await c.env.DB.prepare(
     `UPDATE posts
-     SET title = ?, excerpt = ?, content = ?, status = ?, published_at = ?, updated_at = datetime('now')
+     SET title = ?, category = ?, excerpt = ?, content = ?, status = ?,
+         published_at = ?, updated_at = datetime('now')
      WHERE id = ?`,
   )
     .bind(
       input.title,
+      input.category,
       makeExcerpt(input.content),
       input.content,
       input.status,

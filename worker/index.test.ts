@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Miniflare } from "miniflare";
 import initialMigration from "../migrations/0001_initial.sql?raw";
 import hardeningMigration from "../migrations/0002_owner_and_auth_limits.sql?raw";
+import categoryMigration from "../migrations/0004_add_post_categories.sql?raw";
 import type { Post } from "../shared/types";
 import app, { type Bindings } from "./index";
 import {
@@ -38,6 +39,7 @@ beforeEach(async () => {
   });
   database = (await miniflare.getD1Database("DB")) as unknown as D1Database;
   await applyMigration(initialMigration);
+  await applyMigration(categoryMigration);
   bindings = {
     DB: database,
     ASSETS: {
@@ -172,6 +174,7 @@ describe("post authorization and lifecycle", () => {
       headers: JSON_HEADERS,
       body: JSON.stringify({
         title: "Private notes",
+        category: "随笔",
         content: "This draft should not be public.",
         status: "draft",
       }),
@@ -183,12 +186,27 @@ describe("post authorization and lifecycle", () => {
       headers: { ...JSON_HEADERS, Cookie: ownerCookie },
       body: JSON.stringify({
         title: "Private notes",
+        category: "技术",
         content: "This draft should not be public.",
         status: "draft",
       }),
     });
     expect(created.status).toBe(201);
     const draft = (await created.json() as { data: Post }).data;
+    expect(draft.category).toBe("技术");
+
+    const legacyCreate = await request("/api/me/posts", {
+      method: "POST",
+      headers: { ...JSON_HEADERS, Cookie: ownerCookie },
+      body: JSON.stringify({
+        title: "Legacy client post",
+        content: "## Legacy heading\n\nOlder clients can still create a categorized post.",
+        status: "draft",
+      }),
+    });
+    const legacyPost = ((await legacyCreate.json()) as { data: Post }).data;
+    expect(legacyPost.category).toBe("随笔");
+    expect(legacyPost.excerpt).toBe("Legacy heading Older clients can still create a categorized post.");
 
     const hiddenDraft = await request(`/api/posts/${draft.slug}`);
     expect(hiddenDraft.status).toBe(404);
@@ -203,6 +221,7 @@ describe("post authorization and lifecycle", () => {
       headers: { ...JSON_HEADERS, Cookie: legacyCookie },
       body: JSON.stringify({
         title: "Stolen post",
+        category: "随笔",
         content: "A different author must not update this post.",
         status: "published",
       }),
@@ -214,12 +233,14 @@ describe("post authorization and lifecycle", () => {
       headers: { ...JSON_HEADERS, Cookie: ownerCookie },
       body: JSON.stringify({
         title: "Published notes",
+        category: "观察",
         content: "The owner can publish the original private draft.",
         status: "published",
       }),
     });
     expect(published.status).toBe(200);
     const publicPost = (await published.json() as { data: Post }).data;
+    expect(publicPost.category).toBe("观察");
 
     const visiblePost = await request(`/api/posts/${publicPost.slug}`);
     expect(visiblePost.status).toBe(200);
