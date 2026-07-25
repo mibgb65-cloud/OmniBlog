@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f5f5f7" />
+    <meta
+      name="description"
+      content="MonoLog，一个克制、专注于文字的个人博客。"
+    />
+    <title>MonoLog — 写下值得留下的想法</title>
+    <script>
+      (() => {
+        const saved = localStorage.getItem("monolog-theme");
+        const dark = saved === "dark" ||
+          (!saved && matchMedia("(prefers-color-scheme: dark)").matches);
+        document.documentElement.dataset.theme = dark ? "dark" : "light";
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
