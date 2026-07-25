@@ -1,5 +1,5 @@
 const encoder = new TextEncoder();
-const PASSWORD_ITERATIONS = 210_000;
+const PASSWORD_ITERATIONS = 100_000;
 const SESSION_DAYS = 30;
 
 function bytesToHex(bytes: Uint8Array): string {

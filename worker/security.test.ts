@@ -4,6 +4,7 @@ import { hashPassword, slugify, verifyPassword, verifySecret } from "./security"
 describe("password security", () => {
   it("verifies the correct password and rejects a wrong one", async () => {
     const stored = await hashPassword("correct horse battery staple");
+    expect(stored).toMatch(/^pbkdf2-sha256\$100000\$/);
     await expect(verifyPassword("correct horse battery staple", stored)).resolves.toBe(true);
     await expect(verifyPassword("wrong password", stored)).resolves.toBe(false);
   });
