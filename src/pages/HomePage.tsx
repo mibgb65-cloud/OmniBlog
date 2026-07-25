@@ -21,17 +21,17 @@ export function HomePage() {
     <>
       <section className="hero section">
         <div className="eyebrow">
-          <span className="status-dot" />
+          <span className="status-dot" aria-hidden="true" />
           为独立思考保留一片空间
         </div>
-        <h1>把想法，写成<br />时间的形状。</h1>
+        <h1>把想法，写成时间的形状。</h1>
         <p className="hero-copy">
           一个克制、专注于文字的博客。没有喧嚣的信息流，
           只有值得慢下来阅读的经验、观察与故事。
         </p>
         <a className="scroll-hint" href="#latest">
           浏览最近文章
-          <ArrowDown size={16} />
+          <ArrowDown size={16} aria-hidden="true" />
         </a>
       </section>
 
@@ -45,12 +45,16 @@ export function HomePage() {
         </div>
 
         {loading && <Loading label="正在取回文章" />}
-        {error && <div className="message message-error">{error}</div>}
+        {error && (
+          <div className="message message-error" role="status" aria-live="polite">
+            {error}
+          </div>
+        )}
         {!loading && !error && posts.length === 0 && (
           <div className="empty-state">
             <span className="empty-number">00</span>
             <h3>这里还很安静</h3>
-            <p>注册并发布第一篇文章，让故事从这里开始。</p>
+            <p>第一篇文章正在酝酿中，稍后再来看看。</p>
           </div>
         )}
         {posts.length > 0 && (
@@ -61,15 +65,6 @@ export function HomePage() {
           </div>
         )}
       </section>
-
-      <section className="section manifesto">
-        <span className="section-index">02</span>
-        <blockquote>
-          “简洁不是删去一切，<br />
-          而是只留下真正重要的部分。”
-        </blockquote>
-      </section>
     </>
   );
 }
-

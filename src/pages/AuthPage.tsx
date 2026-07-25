@@ -68,7 +68,7 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
           <h2>{registration.open ? "需要初始化密钥" : "仅限站长登录"}</h2>
           <Link className="button button-primary form-submit" to="/login">
             前往登录
-            <ArrowRight size={17} />
+            <ArrowRight size={17} aria-hidden="true" />
           </Link>
         </div>
       </section>
@@ -109,6 +109,7 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
                 value={setupToken}
                 onChange={(event) => setSetupToken(event.target.value)}
                 autoComplete="off"
+                spellCheck={false}
                 placeholder="OWNER_SETUP_TOKEN"
                 required
               />
@@ -138,6 +139,7 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             autoComplete="email"
+            spellCheck={false}
             placeholder="name@example.com"
             required
           />
@@ -162,15 +164,21 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
               onClick={() => setShowPassword(!showPassword)}
               aria-label={showPassword ? "隐藏密码" : "显示密码"}
             >
-              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              {showPassword
+                ? <EyeOff size={18} aria-hidden="true" />
+                : <Eye size={18} aria-hidden="true" />}
             </button>
           </span>
         </label>
 
-        {error && <div className="message message-error">{error}</div>}
+        {error && (
+          <div className="message message-error" role="status" aria-live="polite">
+            {error}
+          </div>
+        )}
         <button className="button button-primary form-submit" type="submit" disabled={submitting}>
           {submitting ? "请稍候…" : isLogin ? "登录" : "创建站长账号"}
-          {!submitting && <ArrowRight size={17} />}
+          {!submitting && <ArrowRight size={17} aria-hidden="true" />}
         </button>
         <p className="form-note">
           {isLogin ? "登录会话会安全保存在 HttpOnly Cookie 中。" : "初始化完成后，此注册入口会自动关闭。"}

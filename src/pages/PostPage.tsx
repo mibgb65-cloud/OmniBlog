@@ -30,32 +30,41 @@ export function PostPage() {
   }
   if (!post) return <Loading label="正在打开文章" />;
 
+  const paragraphs = post.content
+    .split(/\n{2,}/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean);
+  const excerpt = post.excerpt.trim();
+  const comparableExcerpt = excerpt.replace(/[.…]+$/, "");
+  const showExcerpt = Boolean(
+    comparableExcerpt && !paragraphs[0]?.startsWith(comparableExcerpt),
+  );
+
   return (
     <article className="article section">
       <Link className="back-link" to="/">
-        <ArrowLeft size={17} />
+        <ArrowLeft size={17} aria-hidden="true" />
         返回所有文章
       </Link>
       <header className="article-header">
         <div className="article-meta">
           <span>{post.authorName}</span>
-          <span>{formatDate(post.publishedAt)}</span>
+          <time dateTime={post.publishedAt ?? undefined}>{formatDate(post.publishedAt)}</time>
           <span>{readingTime(post.content)}</span>
         </div>
         <h1>{post.title}</h1>
-        <p>{post.excerpt}</p>
+        {showExcerpt && <p>{excerpt}</p>}
       </header>
       <div className="article-rule" />
       <div className="article-content">
-        {post.content.split(/\n{2,}/).map((paragraph, index) => (
+        {paragraphs.map((paragraph, index) => (
           <p key={`${index}-${paragraph.slice(0, 12)}`}>{paragraph}</p>
         ))}
       </div>
       <footer className="article-end">
-        <span>END</span>
         <p>感谢你读到这里。</p>
+        <Link to="/">继续浏览文章</Link>
       </footer>
     </article>
   );
 }
-

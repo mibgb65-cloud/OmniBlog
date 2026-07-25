@@ -13,6 +13,8 @@ export function EditorPage() {
   const [loading, setLoading] = useState(Boolean(id));
   const [submitting, setSubmitting] = useState<PostStatus | null>(null);
   const [error, setError] = useState("");
+  const [savedDraft, setSavedDraft] = useState({ title: "", content: "" });
+  const hasUnsavedChanges = title !== savedDraft.title || content !== savedDraft.content;
 
   useEffect(() => {
     if (!id) return;
@@ -20,10 +22,21 @@ export function EditorPage() {
       .then((post) => {
         setTitle(post.title);
         setContent(post.content);
+        setSavedDraft({ title: post.title, content: post.content });
       })
       .catch((reason: Error) => setError(reason.message))
       .finally(() => setLoading(false));
   }, [id]);
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+    const warnBeforeLeaving = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warnBeforeLeaving);
+    return () => window.removeEventListener("beforeunload", warnBeforeLeaving);
+  }, [hasUnsavedChanges]);
 
   const save = async (status: PostStatus) => {
     setSubmitting(status);
@@ -33,6 +46,7 @@ export function EditorPage() {
         method: id ? "PUT" : "POST",
         body: JSON.stringify({ title, content, status }),
       });
+      setSavedDraft({ title, content });
       navigate(status === "published" ? `/posts/${post.slug}` : "/dashboard");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "保存失败，请稍后再试。");
@@ -51,11 +65,19 @@ export function EditorPage() {
   return (
     <section className="editor section">
       <div className="editor-top">
-        <Link className="back-link" to="/dashboard">
-          <ArrowLeft size={17} />
+        <Link
+          className="back-link"
+          to="/dashboard"
+          onClick={(event) => {
+            if (hasUnsavedChanges && !window.confirm("还有未保存的内容，确定离开吗？")) {
+              event.preventDefault();
+            }
+          }}
+        >
+          <ArrowLeft size={17} aria-hidden="true" />
           返回文章列表
         </Link>
-        <span>{id ? "编辑文章" : "新文章"}</span>
+        <span>{hasUnsavedChanges ? "有未保存的更改" : id ? "编辑文章" : "新文章"}</span>
       </div>
 
       <form onSubmit={submit}>
@@ -90,7 +112,11 @@ export function EditorPage() {
           />
         </label>
 
-        {error && <div className="message message-error">{error}</div>}
+        {error && (
+          <div className="message message-error" role="status" aria-live="polite">
+            {error}
+          </div>
+        )}
         <div className="editor-actions">
           <p>草稿仅自己可见，发布后会出现在首页。</p>
           <div>
@@ -100,11 +126,11 @@ export function EditorPage() {
               disabled={Boolean(submitting)}
               onClick={() => void save("draft")}
             >
-              <Check size={17} />
+              <Check size={17} aria-hidden="true" />
               {submitting === "draft" ? "保存中…" : "存为草稿"}
             </button>
             <button className="button button-primary" type="submit" disabled={Boolean(submitting)}>
-              <Send size={17} />
+              <Send size={17} aria-hidden="true" />
               {submitting === "published" ? "发布中…" : "发布文章"}
             </button>
           </div>
@@ -113,4 +139,3 @@ export function EditorPage() {
     </section>
   );
 }
-

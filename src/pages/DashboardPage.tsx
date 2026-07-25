@@ -44,7 +44,7 @@ export function DashboardPage() {
           <p>所有想法都值得先被记录，再决定是否公开。</p>
         </div>
         <Link className="button button-primary" to="/write">
-          <Plus size={18} />
+          <Plus size={18} aria-hidden="true" />
           新建文章
         </Link>
       </header>
@@ -61,10 +61,14 @@ export function DashboardPage() {
       </div>
 
       {loading && <Loading label="正在整理你的文章" />}
-      {error && <div className="message message-error">{error}</div>}
+      {error && (
+        <div className="message message-error" role="status" aria-live="polite">
+          {error}
+        </div>
+      )}
       {!loading && posts.length === 0 && (
         <div className="empty-state compact-empty">
-          <FileText size={28} />
+          <FileText size={28} aria-hidden="true" />
           <h3>还没有文章</h3>
           <p>新建一篇草稿，从标题开始。</p>
           <Link className="button button-secondary" to="/write">开始写作</Link>
@@ -89,7 +93,7 @@ export function DashboardPage() {
                     to={`/posts/${post.slug}`}
                     aria-label={`查看《${post.title}》`}
                   >
-                    <ExternalLink size={17} />
+                    <ExternalLink size={17} aria-hidden="true" />
                   </Link>
                 )}
                 <Link
@@ -97,7 +101,7 @@ export function DashboardPage() {
                   to={`/write/${post.id}`}
                   aria-label={`编辑《${post.title}》`}
                 >
-                  <Edit3 size={17} />
+                  <Edit3 size={17} aria-hidden="true" />
                 </Link>
                 <button
                   className="icon-button danger"
@@ -105,7 +109,7 @@ export function DashboardPage() {
                   onClick={() => remove(post)}
                   aria-label={`删除《${post.title}》`}
                 >
-                  <Trash2 size={17} />
+                  <Trash2 size={17} aria-hidden="true" />
                 </button>
               </div>
             </article>
@@ -115,4 +119,3 @@ export function DashboardPage() {
     </section>
   );
 }
-
