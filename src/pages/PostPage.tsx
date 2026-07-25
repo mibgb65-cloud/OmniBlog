@@ -61,7 +61,7 @@ export function PostPage() {
 
   return (
     <article className="article section">
-      <Link className="back-link" to="/">
+      <Link className="back-link" to="/articles">
         <ArrowLeft size={17} aria-hidden="true" />
         返回所有文章
       </Link>
@@ -80,7 +80,7 @@ export function PostPage() {
       </div>
       <footer className="article-end">
         <p>感谢你读到这里。</p>
-        <Link to="/">继续浏览文章</Link>
+        <Link to="/articles">继续浏览文章</Link>
       </footer>
     </article>
   );

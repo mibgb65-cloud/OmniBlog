@@ -1,13 +1,15 @@
 import { Moon, PenLine, Sun } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
-import { Link, NavLink, useNavigate } from "react-router-dom";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 
 type Theme = "light" | "dark";
 
 export function Layout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
+  const location = useLocation();
   const navigate = useNavigate();
+  const isHome = location.pathname === "/";
   const [theme, setTheme] = useState<Theme>(
     document.documentElement.dataset.theme === "dark" ? "dark" : "light",
   );
@@ -44,7 +46,7 @@ export function Layout({ children }: { children: ReactNode }) {
   };
 
   return (
-    <div className="site-shell">
+    <div className={`site-shell${isHome ? " home-route" : ""}`}>
       {showIntro && (
         <div className="intro-screen" aria-hidden="true">
           <div className="intro-lockup">
@@ -65,7 +67,8 @@ export function Layout({ children }: { children: ReactNode }) {
         </Link>
 
         <nav className="nav-links" aria-label="主导航">
-          <NavLink to="/" end>发现</NavLink>
+          <NavLink to="/" end>首页</NavLink>
+          <NavLink to="/articles">文章</NavLink>
           {user && <NavLink to="/dashboard">我的文章</NavLink>}
         </nav>
 

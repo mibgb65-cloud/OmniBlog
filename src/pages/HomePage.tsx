@@ -1,134 +1,97 @@
-import { ArrowDown } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import type { Category, Post } from "../../shared/types";
-import { Loading } from "../components/Loading";
-import { PostCard } from "../components/PostCard";
+import { Link } from "react-router-dom";
+import type { Post } from "../../shared/types";
 import { api } from "../lib/api";
+import { formatDate } from "../lib/format";
 
 export function HomePage() {
-  const [searchParams, setSearchParams] = useSearchParams();
   const [posts, setPosts] = useState<Post[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    Promise.all([
-      api<Post[]>("/api/posts"),
-      api<Category[]>("/api/categories"),
-    ])
-      .then(([nextPosts, nextCategories]) => {
-        setPosts(nextPosts);
-        setCategories(nextCategories);
-      })
+    api<Post[]>("/api/posts")
+      .then(setPosts)
       .catch((reason: Error) => setError(reason.message))
       .finally(() => setLoading(false));
   }, []);
 
-  const selectedCategory = searchParams.get("category") ?? "";
-  const filteredPosts = selectedCategory
-    ? posts.filter((post) => (post.category || "随笔") === selectedCategory)
-    : posts;
-
-  const chooseCategory = (category: string) => {
-    setSearchParams(category ? { category } : {}, { replace: true });
-  };
+  const recentPosts = posts.slice(0, 3);
 
   return (
-    <div className="home-layout section">
-      <aside className="category-sidebar">
-        <div className="category-heading">
-          <span>分类</span>
-          <span>{posts.length} 篇</span>
+    <section className="home-landing section">
+      <div className="home-intro">
+        <div className="eyebrow">
+          <span className="status-dot" aria-hidden="true" />
+          为独立思考保留一片空间
         </div>
-        <nav className="category-list" aria-label="按分类筛选文章">
-          <button
-            className={!selectedCategory ? "active" : ""}
-            type="button"
-            aria-pressed={!selectedCategory}
-            onClick={() => chooseCategory("")}
-          >
-            <span>全部文章</span>
-            <span>{posts.length}</span>
-          </button>
-          {categories.map((category) => (
-            <button
-              className={selectedCategory === category.name ? "active" : ""}
-              type="button"
-              aria-pressed={selectedCategory === category.name}
-              onClick={() => chooseCategory(category.name)}
-              key={category.id}
-            >
-              <span>{category.name}</span>
-              <span>{category.postCount}</span>
-            </button>
-          ))}
-        </nav>
-      </aside>
-
-      <div className="home-content">
-        <section className="hero">
-          <div className="eyebrow">
-            <span className="status-dot" aria-hidden="true" />
-            为独立思考保留一片空间
-          </div>
-          <h1>把想法，写成时间的形状。</h1>
-          <p className="hero-copy">
-            一个克制、专注于文字的博客。没有喧嚣的信息流，
-            只有值得慢下来阅读的经验、观察与故事。
-          </p>
-          <a className="scroll-hint" href="#latest">
-            浏览最近文章
-            <ArrowDown size={16} aria-hidden="true" />
-          </a>
-        </section>
-
-        <section className="posts-section" id="latest">
-          <div className="section-heading">
-            <div>
-              <span className="section-index">01</span>
-              <h2>最近写下</h2>
-            </div>
-            <p>新鲜的思考，按时间倒序。</p>
-          </div>
-
-          <div className="posts-feed">
-            {loading && <Loading label="正在取回文章" />}
-            {error && (
-              <div className="message message-error" role="status" aria-live="polite">
-                {error}
-              </div>
-            )}
-            {!loading && !error && posts.length === 0 && (
-              <div className="empty-state">
-                <span className="empty-number">00</span>
-                <h3>这里还很安静</h3>
-                <p>第一篇文章正在酝酿中，稍后再来看看。</p>
-              </div>
-            )}
-            {!loading && posts.length > 0 && filteredPosts.length === 0 && (
-              <div className="empty-state filter-empty">
-                <h3>这个分类暂时没有文章</h3>
-                <button
-                  className="button button-secondary"
-                  type="button"
-                  onClick={() => chooseCategory("")}
-                >
-                  查看全部文章
-                </button>
-              </div>
-            )}
-            {filteredPosts.length > 0 && (
-              <div className="post-grid">
-                {filteredPosts.map((post, index) => (
-                  <PostCard key={post.id} post={post} featured={index === 0} />
-                ))}
-              </div>
-            )}
-          </div>
-        </section>
+        <h1>把想法，写成时间的形状。</h1>
+        <p className="home-intro-copy">
+          一个克制、专注于文字的博客。没有喧嚣的信息流，
+          只有值得慢下来阅读的经验、观察与故事。
+        </p>
+        <Link className="home-all-link" to="/articles">
+          浏览全部文章
+          <ArrowUpRight size={17} aria-hidden="true" />
+        </Link>
       </div>
-    </div>
+
+      <section className="home-recent" aria-labelledby="recent-heading">
+        <header className="home-recent-header">
+          <div>
+            <span className="section-index">最新</span>
+            <h2 id="recent-heading">最近写下</h2>
+          </div>
+          <span>{String(recentPosts.length).padStart(2, "0")} / 03</span>
+        </header>
+
+        {loading && (
+          <div className="home-recent-status" role="status" aria-live="polite">
+            <span className="loading-pulse" aria-hidden="true">
+              <span /><span /><span />
+            </span>
+            正在取回文章
+          </div>
+        )}
+        {error && (
+          <div className="home-recent-status message-error" role="status" aria-live="polite">
+            暂时无法取回文章
+          </div>
+        )}
+        {!loading && !error && recentPosts.length === 0 && (
+          <div className="home-recent-status">
+            第一篇文章正在酝酿中。
+          </div>
+        )}
+        {!loading && !error && recentPosts.length > 0 && (
+          <div className="home-recent-list">
+            {recentPosts.map((post, index) => (
+              <Link
+                className="home-recent-item"
+                to={`/posts/${post.slug}`}
+                state={{ post }}
+                key={post.id}
+              >
+                <span className="home-recent-number">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <div className="home-recent-copy">
+                  <div className="home-recent-meta">
+                    <span>{post.category || "随笔"}</span>
+                    <time dateTime={post.publishedAt ?? undefined}>
+                      {formatDate(post.publishedAt)}
+                    </time>
+                  </div>
+                  <h3>{post.title}</h3>
+                  <p>{post.excerpt}</p>
+                </div>
+                <ArrowUpRight className="home-recent-arrow" size={18} aria-hidden="true" />
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
+    </section>
   );
 }

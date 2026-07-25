@@ -4,6 +4,7 @@ import { Layout } from "./components/Layout";
 import { Loading } from "./components/Loading";
 import { useAuth } from "./lib/auth";
 import { AuthPage } from "./pages/AuthPage";
+import { ArticlesPage } from "./pages/ArticlesPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { EditorPage } from "./pages/EditorPage";
 import { HomePage } from "./pages/HomePage";
@@ -31,6 +32,7 @@ export function App() {
       <div className="route-transition" key={location.pathname}>
         <Routes location={location}>
           <Route path="/" element={<HomePage />} />
+          <Route path="/articles" element={<ArticlesPage />} />
           <Route path="/posts/:slug" element={<PostPage />} />
           <Route path="/login" element={<AuthPage mode="login" />} />
           <Route path="/register" element={<AuthPage mode="register" />} />
