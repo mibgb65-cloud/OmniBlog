@@ -1,7 +1,7 @@
-import { Check, Edit3, ExternalLink, FileText, Plus, Tag, Trash2, X } from "lucide-react";
+import { Check, Edit3, ExternalLink, Eye, FileText, Plus, Tag, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import type { Category, Post } from "../../shared/types";
+import type { Category, Post, PostVisibility } from "../../shared/types";
 import { Loading } from "../components/Loading";
 import { api } from "../lib/api";
 import { useAuth } from "../lib/auth";
@@ -18,6 +18,7 @@ export function DashboardPage() {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [editingName, setEditingName] = useState("");
   const [categoryBusy, setCategoryBusy] = useState("");
+  const [visibilityBusy, setVisibilityBusy] = useState("");
 
   const load = useCallback(() => {
     setLoading(true);
@@ -47,6 +48,25 @@ export function DashboardPage() {
       )));
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "删除失败。");
+    }
+  };
+
+  const changeVisibility = async (post: Post, visibility: PostVisibility) => {
+    if (post.visibility === visibility) return;
+    setVisibilityBusy(post.id);
+    setError("");
+    try {
+      const updated = await api<Post>(`/api/me/posts/${post.id}/visibility`, {
+        method: "PATCH",
+        body: JSON.stringify({ visibility }),
+      });
+      setPosts((current) => current.map((item) => (
+        item.id === updated.id ? updated : item
+      )));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "修改可见性失败。");
+    } finally {
+      setVisibilityBusy("");
     }
   };
 
@@ -166,6 +186,21 @@ export function DashboardPage() {
                 <p>更新于 {formatDate(post.updatedAt)}</p>
               </div>
               <div className="row-actions">
+                <label className="visibility-quick-control">
+                  <Eye size={16} aria-hidden="true" />
+                  <span className="sr-only">《{post.title}》的可见性</span>
+                  <select
+                    value={post.visibility || "public"}
+                    disabled={visibilityBusy === post.id}
+                    onChange={(event) => {
+                      void changeVisibility(post, event.target.value as PostVisibility);
+                    }}
+                  >
+                    <option value="public">公开</option>
+                    <option value="unlisted">仅链接</option>
+                    <option value="private">私密</option>
+                  </select>
+                </label>
                 {post.status === "published" && (
                   <Link
                     className="icon-button"

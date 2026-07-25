@@ -6,6 +6,7 @@ export type User = {
 };
 
 export type PostStatus = "draft" | "published";
+export type PostVisibility = "public" | "unlisted" | "private";
 
 export type Post = {
   id: string;
@@ -17,6 +18,7 @@ export type Post = {
   excerpt: string;
   content: string;
   status: PostStatus;
+  visibility: PostVisibility;
   createdAt: string;
   updatedAt: string;
   publishedAt: string | null;
@@ -27,6 +29,7 @@ export type PostInput = {
   category: string;
   content: string;
   status: PostStatus;
+  visibility: PostVisibility;
 };
 
 export type Category = {

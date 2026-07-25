@@ -1,6 +1,12 @@
 import { Hono, type Context, type MiddlewareHandler } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
-import type { Category, PostInput, PostStatus, User } from "../shared/types";
+import type {
+  Category,
+  PostInput,
+  PostStatus,
+  PostVisibility,
+  User,
+} from "../shared/types";
 import {
   createSessionToken,
   hashPassword,
@@ -43,6 +49,7 @@ type PostRow = {
   excerpt: string;
   content: string;
   status: PostStatus;
+  visibility: PostVisibility;
   created_at: string;
   updated_at: string;
   published_at: string | null;
@@ -81,6 +88,7 @@ const toPost = (row: PostRow) => ({
   excerpt: row.excerpt,
   content: row.content,
   status: row.status,
+  visibility: row.visibility,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
   publishedAt: row.published_at,
@@ -132,6 +140,7 @@ function validatePost(body: Record<string, unknown> | null): PostInput | { error
   const category = typeof body?.category === "string" ? body.category.trim() : "随笔";
   const content = typeof body?.content === "string" ? body.content.trim() : "";
   const status = body?.status;
+  const visibility = body?.visibility ?? "public";
 
   if (title.length < 2 || title.length > 100) {
     return { error: "标题需为 2–100 个字符。" };
@@ -145,8 +154,21 @@ function validatePost(body: Record<string, unknown> | null): PostInput | { error
   if (status !== "draft" && status !== "published") {
     return { error: "文章状态无效。" };
   }
+  if (visibility !== "public" && visibility !== "unlisted" && visibility !== "private") {
+    return { error: "文章可见性无效。" };
+  }
 
-  return { title, category, content, status };
+  return { title, category, content, status, visibility };
+}
+
+function validateVisibility(
+  body: Record<string, unknown> | null,
+): { visibility: PostVisibility } | { error: string } {
+  const visibility = body?.visibility;
+  if (visibility !== "public" && visibility !== "unlisted" && visibility !== "private") {
+    return { error: "文章可见性无效。" };
+  }
+  return { visibility };
 }
 
 function validateCategory(
@@ -415,7 +437,9 @@ app.get("/api/categories", async (c) => {
     `SELECT categories.*, COUNT(posts.id) AS post_count
      FROM categories
      LEFT JOIN posts
-       ON posts.category = categories.name AND posts.status = 'published'
+       ON posts.category = categories.name
+         AND posts.status = 'published'
+         AND posts.visibility = 'public'
      GROUP BY categories.id
      ORDER BY categories.sort_order, categories.created_at`,
   ).all<CategoryRow>();
@@ -427,7 +451,7 @@ app.get("/api/posts", async (c) => {
     `SELECT posts.*, users.name AS author_name
      FROM posts
      JOIN users ON users.id = posts.author_id
-     WHERE posts.status = 'published'
+     WHERE posts.status = 'published' AND posts.visibility = 'public'
      ORDER BY posts.published_at DESC
      LIMIT 50`,
   ).all<PostRow>();
@@ -444,6 +468,12 @@ app.get("/api/posts/:slug", async (c) => {
     .bind(c.req.param("slug"))
     .first<PostRow>();
   if (!row) return c.json({ error: "文章不存在或尚未发布。" }, 404);
+  if (row.visibility === "private") {
+    const user = await currentUser(c);
+    if (user?.id !== row.author_id) {
+      return c.json({ error: "文章不存在或不可见。" }, 404);
+    }
+  }
   return c.json({ data: toPost(row) });
 });
 
@@ -593,9 +623,10 @@ app.post("/api/me/posts", async (c) => {
   const publishedAt = input.status === "published" ? new Date().toISOString() : null;
   await c.env.DB.prepare(
     `INSERT INTO posts (
-       id, author_id, title, slug, category, excerpt, content, status, published_at
+       id, author_id, title, slug, category, excerpt, content, status, visibility,
+       published_at
      )
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
     .bind(
       id,
@@ -606,6 +637,7 @@ app.post("/api/me/posts", async (c) => {
       makeExcerpt(input.content),
       input.content,
       input.status,
+      input.visibility,
       publishedAt,
     )
     .run();
@@ -638,7 +670,7 @@ app.put("/api/me/posts/:id", async (c) => {
     input.status === "published" ? existing.published_at ?? new Date().toISOString() : null;
   await c.env.DB.prepare(
     `UPDATE posts
-     SET title = ?, category = ?, excerpt = ?, content = ?, status = ?,
+     SET title = ?, category = ?, excerpt = ?, content = ?, status = ?, visibility = ?,
          published_at = ?, updated_at = datetime('now')
      WHERE id = ?`,
   )
@@ -648,6 +680,7 @@ app.put("/api/me/posts/:id", async (c) => {
       makeExcerpt(input.content),
       input.content,
       input.status,
+      input.visibility,
       publishedAt,
       existing.id,
     )
@@ -659,6 +692,29 @@ app.put("/api/me/posts/:id", async (c) => {
      WHERE posts.id = ?`,
   )
     .bind(existing.id)
+    .first<PostRow>();
+  return c.json({ data: toPost(row!) });
+});
+
+app.patch("/api/me/posts/:id/visibility", async (c) => {
+  const input = validateVisibility(await readJson(c));
+  if ("error" in input) return jsonError(c, input.error);
+
+  const result = await c.env.DB.prepare(
+    `UPDATE posts
+     SET visibility = ?, updated_at = datetime('now')
+     WHERE id = ? AND author_id = ?`,
+  )
+    .bind(input.visibility, c.req.param("id"), c.get("user").id)
+    .run();
+  if (!result.meta.changes) return c.json({ error: "没有找到这篇文章。" }, 404);
+
+  const row = await c.env.DB.prepare(
+    `SELECT posts.*, users.name AS author_name
+     FROM posts JOIN users ON users.id = posts.author_id
+     WHERE posts.id = ?`,
+  )
+    .bind(c.req.param("id"))
     .first<PostRow>();
   return c.json({ data: toPost(row!) });
 });

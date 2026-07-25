@@ -4,6 +4,7 @@ import initialMigration from "../migrations/0001_initial.sql?raw";
 import hardeningMigration from "../migrations/0002_owner_and_auth_limits.sql?raw";
 import categoryMigration from "../migrations/0004_add_post_categories.sql?raw";
 import categoriesMigration from "../migrations/0005_create_categories.sql?raw";
+import visibilityMigration from "../migrations/0006_add_post_visibility.sql?raw";
 import type { Category, Post } from "../shared/types";
 import app, { type Bindings } from "./index";
 import {
@@ -42,6 +43,7 @@ beforeEach(async () => {
   await applyMigration(initialMigration);
   await applyMigration(categoryMigration);
   await applyMigration(categoriesMigration);
+  await applyMigration(visibilityMigration);
   bindings = {
     DB: database,
     ASSETS: {
@@ -259,6 +261,73 @@ describe("post authorization and lifecycle", () => {
     });
     expect(ownerDelete.status).toBe(200);
     expect((await request(`/api/posts/${publicPost.slug}`)).status).toBe(404);
+  });
+
+  it("enforces public, unlisted, and private visibility", async () => {
+    await seedUser("owner", "Owner", "owner@example.com", "owner password");
+    await seedUser("visitor", "Visitor", "visitor@example.com", "visitor password");
+    const ownerCookie = await sessionCookie("owner");
+    const visitorCookie = await sessionCookie("visitor");
+
+    const createPost = async (title: string, visibility: Post["visibility"]) => {
+      const response = await request("/api/me/posts", {
+        method: "POST",
+        headers: { ...JSON_HEADERS, Cookie: ownerCookie },
+        body: JSON.stringify({
+          title,
+          category: "随笔",
+          content: `${title} has enough content for the post validation rule.`,
+          status: "published",
+          visibility,
+        }),
+      });
+      expect(response.status).toBe(201);
+      return ((await response.json()) as { data: Post }).data;
+    };
+
+    const publicPost = await createPost("Public article", "public");
+    const unlistedPost = await createPost("Unlisted article", "unlisted");
+    const privatePost = await createPost("Private article", "private");
+
+    const list = (await (await request("/api/posts")).json()) as { data: Post[] };
+    expect(list.data.map((post) => post.id)).toEqual([publicPost.id]);
+
+    const categories = (await (await request("/api/categories")).json()) as {
+      data: Category[];
+    };
+    expect(categories.data.find((category) => category.name === "随笔")?.postCount).toBe(1);
+
+    expect((await request(`/api/posts/${unlistedPost.slug}`)).status).toBe(200);
+    expect((await request(`/api/posts/${privatePost.slug}`)).status).toBe(404);
+    expect((await request(`/api/posts/${privatePost.slug}`, {
+      headers: { Cookie: visitorCookie },
+    })).status).toBe(404);
+    expect((await request(`/api/posts/${privatePost.slug}`, {
+      headers: { Cookie: ownerCookie },
+    })).status).toBe(200);
+
+    const forbiddenUpdate = await request(`/api/me/posts/${privatePost.id}/visibility`, {
+      method: "PATCH",
+      headers: { ...JSON_HEADERS, Cookie: visitorCookie },
+      body: JSON.stringify({ visibility: "public" }),
+    });
+    expect(forbiddenUpdate.status).toBe(404);
+
+    const invalidUpdate = await request(`/api/me/posts/${privatePost.id}/visibility`, {
+      method: "PATCH",
+      headers: { ...JSON_HEADERS, Cookie: ownerCookie },
+      body: JSON.stringify({ visibility: "friends" }),
+    });
+    expect(invalidUpdate.status).toBe(400);
+
+    const updated = await request(`/api/me/posts/${privatePost.id}/visibility`, {
+      method: "PATCH",
+      headers: { ...JSON_HEADERS, Cookie: ownerCookie },
+      body: JSON.stringify({ visibility: "unlisted" }),
+    });
+    expect(updated.status).toBe(200);
+    expect(((await updated.json()) as { data: Post }).data.visibility).toBe("unlisted");
+    expect((await request(`/api/posts/${privatePost.slug}`)).status).toBe(200);
   });
 });
 

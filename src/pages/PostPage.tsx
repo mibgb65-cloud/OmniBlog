@@ -68,6 +68,9 @@ export function PostPage() {
       <header className="article-header">
         <div className="article-meta">
           <span>{post.category || "随笔"}</span>
+          {post.visibility !== "public" && (
+            <span>{post.visibility === "unlisted" ? "仅链接可见" : "私密文章"}</span>
+          )}
           <span>{post.authorName}</span>
           <time dateTime={post.publishedAt ?? undefined}>{formatDate(post.publishedAt)}</time>
           <span>{readingTime(post.content)}</span>

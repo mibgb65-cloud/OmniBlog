@@ -1,10 +1,31 @@
-import { ArrowLeft, Check, FileUp, Send } from "lucide-react";
+import { ArrowLeft, Check, FileUp, Globe2, Link2, LockKeyhole, Send } from "lucide-react";
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import type { Category, Post, PostStatus } from "../../shared/types";
+import type { Category, Post, PostStatus, PostVisibility } from "../../shared/types";
 import { Loading } from "../components/Loading";
 import { api } from "../lib/api";
 import { parseMarkdownImport } from "../lib/markdown";
+
+const visibilityOptions = [
+  {
+    value: "public",
+    label: "公开",
+    description: "出现在首页和文章归档，任何人都能阅读。",
+    icon: Globe2,
+  },
+  {
+    value: "unlisted",
+    label: "仅链接可见",
+    description: "不进入文章列表，知道链接的人可以阅读。",
+    icon: Link2,
+  },
+  {
+    value: "private",
+    label: "私密",
+    description: "只有你登录后才能打开这篇文章。",
+    icon: LockKeyhole,
+  },
+] as const;
 
 export function EditorPage() {
   const { id } = useParams();
@@ -14,14 +35,21 @@ export function EditorPage() {
   const [category, setCategory] = useState("随笔");
   const [categories, setCategories] = useState<Category[]>([]);
   const [content, setContent] = useState("");
+  const [visibility, setVisibility] = useState<PostVisibility>("public");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState<PostStatus | null>(null);
   const [error, setError] = useState("");
-  const [savedDraft, setSavedDraft] = useState({ title: "", category: "随笔", content: "" });
+  const [savedDraft, setSavedDraft] = useState({
+    title: "",
+    category: "随笔",
+    content: "",
+    visibility: "public" as PostVisibility,
+  });
   const hasUnsavedChanges =
     title !== savedDraft.title ||
     category !== savedDraft.category ||
-    content !== savedDraft.content;
+    content !== savedDraft.content ||
+    visibility !== savedDraft.visibility;
 
   useEffect(() => {
     const postRequest = id
@@ -37,14 +65,26 @@ export function EditorPage() {
             ?? nextCategories[0]?.name
             ?? "";
           setCategory(initialCategory);
-          setSavedDraft({ title: "", category: initialCategory, content: "" });
+          setSavedDraft({
+            title: "",
+            category: initialCategory,
+            content: "",
+            visibility: "public",
+          });
           return;
         }
         const postCategory = post.category || "随笔";
+        const postVisibility = post.visibility || "public";
         setTitle(post.title);
         setCategory(postCategory);
         setContent(post.content);
-        setSavedDraft({ title: post.title, category: postCategory, content: post.content });
+        setVisibility(postVisibility);
+        setSavedDraft({
+          title: post.title,
+          category: postCategory,
+          content: post.content,
+          visibility: postVisibility,
+        });
       })
       .catch((reason: Error) => setError(reason.message))
       .finally(() => setLoading(false));
@@ -105,9 +145,9 @@ export function EditorPage() {
     try {
       const post = await api<Post>(id ? `/api/me/posts/${id}` : "/api/me/posts", {
         method: id ? "PUT" : "POST",
-        body: JSON.stringify({ title, category, content, status }),
+        body: JSON.stringify({ title, category, content, status, visibility }),
       });
-      setSavedDraft({ title, category, content });
+      setSavedDraft({ title, category, content, visibility });
       navigate(status === "published" ? `/posts/${post.slug}` : "/dashboard");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "保存失败，请稍后再试。");
@@ -200,6 +240,38 @@ export function EditorPage() {
           <span>{content.replace(/\s/g, "").length} 字 · 支持 Markdown</span>
         </div>
 
+        <fieldset className="visibility-setting">
+          <legend>文章可见性</legend>
+          <p>草稿始终只有你可见；以下设置会在文章发布后生效。</p>
+          <div className="visibility-options">
+            {visibilityOptions.map((option) => {
+              const Icon = option.icon;
+              return (
+                <label
+                  className={`visibility-option${visibility === option.value ? " active" : ""}`}
+                  key={option.value}
+                >
+                  <input
+                    type="radio"
+                    name="visibility"
+                    value={option.value}
+                    checked={visibility === option.value}
+                    disabled={Boolean(submitting)}
+                    onChange={() => setVisibility(option.value)}
+                  />
+                  <span className="visibility-option-icon" aria-hidden="true">
+                    <Icon size={18} />
+                  </span>
+                  <span>
+                    <strong>{option.label}</strong>
+                    <small>{option.description}</small>
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        </fieldset>
+
         <label className="editor-content" htmlFor="content">
           <span className="sr-only">文章正文</span>
           <textarea
@@ -219,7 +291,9 @@ export function EditorPage() {
           </div>
         )}
         <div className="editor-actions">
-          <p>草稿仅自己可见，发布后会出现在首页。</p>
+          <p>
+            发布可见性：{visibilityOptions.find((option) => option.value === visibility)?.label}
+          </p>
           <div>
             <button
               className="button button-secondary"
