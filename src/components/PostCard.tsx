@@ -9,6 +9,7 @@ export function PostCard({ post, featured = false }: { post: Post; featured?: bo
       <Link
         className="post-card-link"
         to={`/posts/${post.slug}`}
+        state={{ post }}
         aria-label={`阅读《${post.title}》`}
       >
         <div className="post-card-top">

@@ -1,3 +1,4 @@
+import { useLayoutEffect } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { Loading } from "./components/Loading";
@@ -20,6 +21,10 @@ function Protected({ children }: { children: React.ReactNode }) {
 
 export function App() {
   const location = useLocation();
+
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
 
   return (
     <Layout>

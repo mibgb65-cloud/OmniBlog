@@ -1,7 +1,7 @@
 import { ArrowLeft } from "lucide-react";
 import { useEffect, useState } from "react";
 import Markdown from "react-markdown";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import remarkGfm from "remark-gfm";
 import type { Post } from "../../shared/types";
 import { Loading } from "../components/Loading";
@@ -10,15 +10,36 @@ import { formatDate, readingTime } from "../lib/format";
 
 export function PostPage() {
   const { slug } = useParams();
-  const [post, setPost] = useState<Post | null>(null);
+  const location = useLocation();
+  const linkedPost = (location.state as { post?: Post } | null)?.post;
+  const [post, setPost] = useState<Post | null>(
+    linkedPost && linkedPost.slug === slug ? linkedPost : null,
+  );
   const [error, setError] = useState("");
+  const [showLoading, setShowLoading] = useState(false);
 
   useEffect(() => {
-    if (!slug) return;
+    if (!slug || post?.slug === slug) return;
+    let cancelled = false;
+    const loadingTimer = window.setTimeout(() => setShowLoading(true), 180);
+
     api<Post>(`/api/posts/${encodeURIComponent(slug)}`)
-      .then(setPost)
-      .catch((reason: Error) => setError(reason.message));
-  }, [slug]);
+      .then((nextPost) => {
+        if (!cancelled) setPost(nextPost);
+      })
+      .catch((reason: Error) => {
+        if (!cancelled) setError(reason.message);
+      })
+      .finally(() => {
+        window.clearTimeout(loadingTimer);
+        if (!cancelled) setShowLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(loadingTimer);
+    };
+  }, [post?.slug, slug]);
 
   if (error) {
     return (
@@ -30,7 +51,13 @@ export function PostPage() {
       </section>
     );
   }
-  if (!post) return <Loading label="正在打开文章" />;
+  if (!post) {
+    return (
+      <div className="article-loading-shell">
+        {showLoading && <Loading label="正在打开文章" />}
+      </div>
+    );
+  }
 
   return (
     <article className="article section">

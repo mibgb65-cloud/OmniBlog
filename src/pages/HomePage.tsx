@@ -37,62 +37,62 @@ export function HomePage() {
   };
 
   return (
-    <>
-      <section className="hero section">
-        <div className="eyebrow">
-          <span className="status-dot" aria-hidden="true" />
-          为独立思考保留一片空间
+    <div className="home-layout section">
+      <aside className="category-sidebar">
+        <div className="category-heading">
+          <span>分类</span>
+          <span>{posts.length} 篇</span>
         </div>
-        <h1>把想法，写成时间的形状。</h1>
-        <p className="hero-copy">
-          一个克制、专注于文字的博客。没有喧嚣的信息流，
-          只有值得慢下来阅读的经验、观察与故事。
-        </p>
-        <a className="scroll-hint" href="#latest">
-          浏览最近文章
-          <ArrowDown size={16} aria-hidden="true" />
-        </a>
-      </section>
+        <nav className="category-list" aria-label="按分类筛选文章">
+          <button
+            className={!selectedCategory ? "active" : ""}
+            type="button"
+            aria-pressed={!selectedCategory}
+            onClick={() => chooseCategory("")}
+          >
+            <span>全部文章</span>
+            <span>{posts.length}</span>
+          </button>
+          {categories.map(([category, count]) => (
+            <button
+              className={selectedCategory === category ? "active" : ""}
+              type="button"
+              aria-pressed={selectedCategory === category}
+              onClick={() => chooseCategory(category)}
+              key={category}
+            >
+              <span>{category}</span>
+              <span>{count}</span>
+            </button>
+          ))}
+        </nav>
+      </aside>
 
-      <section className="section posts-section" id="latest">
-        <div className="section-heading">
-          <div>
-            <span className="section-index">01</span>
-            <h2>最近写下</h2>
+      <div className="home-content">
+        <section className="hero">
+          <div className="eyebrow">
+            <span className="status-dot" aria-hidden="true" />
+            为独立思考保留一片空间
           </div>
-          <p>新鲜的思考，按时间倒序。</p>
-        </div>
+          <h1>把想法，写成时间的形状。</h1>
+          <p className="hero-copy">
+            一个克制、专注于文字的博客。没有喧嚣的信息流，
+            只有值得慢下来阅读的经验、观察与故事。
+          </p>
+          <a className="scroll-hint" href="#latest">
+            浏览最近文章
+            <ArrowDown size={16} aria-hidden="true" />
+          </a>
+        </section>
 
-        <div className="posts-layout">
-          <aside className="category-sidebar">
-            <div className="category-heading">
-              <span>分类</span>
-              <span>{posts.length} 篇</span>
+        <section className="posts-section" id="latest">
+          <div className="section-heading">
+            <div>
+              <span className="section-index">01</span>
+              <h2>最近写下</h2>
             </div>
-            <nav className="category-list" aria-label="按分类筛选文章">
-              <button
-                className={!selectedCategory ? "active" : ""}
-                type="button"
-                aria-pressed={!selectedCategory}
-                onClick={() => chooseCategory("")}
-              >
-                <span>全部文章</span>
-                <span>{posts.length}</span>
-              </button>
-              {categories.map(([category, count]) => (
-                <button
-                  className={selectedCategory === category ? "active" : ""}
-                  type="button"
-                  aria-pressed={selectedCategory === category}
-                  onClick={() => chooseCategory(category)}
-                  key={category}
-                >
-                  <span>{category}</span>
-                  <span>{count}</span>
-                </button>
-              ))}
-            </nav>
-          </aside>
+            <p>新鲜的思考，按时间倒序。</p>
+          </div>
 
           <div className="posts-feed">
             {loading && <Loading label="正在取回文章" />}
@@ -111,7 +111,11 @@ export function HomePage() {
             {!loading && posts.length > 0 && filteredPosts.length === 0 && (
               <div className="empty-state filter-empty">
                 <h3>这个分类暂时没有文章</h3>
-                <button className="button button-secondary" type="button" onClick={() => chooseCategory("")}>
+                <button
+                  className="button button-secondary"
+                  type="button"
+                  onClick={() => chooseCategory("")}
+                >
                   查看全部文章
                 </button>
               </div>
@@ -124,8 +128,8 @@ export function HomePage() {
               </div>
             )}
           </div>
-        </div>
-      </section>
-    </>
+        </section>
+      </div>
+    </div>
   );
 }
