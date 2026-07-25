@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "monolog",
+  "name": "omni-blog",
   "main": "worker/index.ts",
   "compatibility_date": "2026-07-24",
   "assets": {
@@ -21,4 +21,3 @@
     "enabled": true
   }
 }
-

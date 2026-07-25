@@ -24,7 +24,7 @@ npm run dev
    `wrangler.jsonc` 的 `database_id`，提交并推送到 GitHub 的 `main` 分支。
 
 2. 在 Workers & Pages 中选择 **Create application → Import a repository**，连接该 GitHub
-   仓库。Worker 名称必须为 `monolog`，与 `wrangler.jsonc` 中的 `name` 一致。
+   仓库。Worker 名称必须为 `omni-blog`，与 `wrangler.jsonc` 中的 `name` 一致。
 
 3. 使用以下构建设置：
 
