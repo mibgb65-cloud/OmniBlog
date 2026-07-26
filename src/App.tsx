@@ -1,4 +1,4 @@
-import { useLayoutEffect } from "react";
+import { useEffect, useLayoutEffect, useState, type AnimationEvent } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { Loading } from "./components/Loading";
@@ -20,17 +20,68 @@ function Protected({ children }: { children: React.ReactNode }) {
   return children;
 }
 
+type RoutePhase = "entering" | "idle" | "leaving";
+
 export function App() {
   const location = useLocation();
+  const [displayLocation, setDisplayLocation] = useState(location);
+  const [routePhase, setRoutePhase] = useState<RoutePhase>("entering");
+  const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  useEffect(() => {
+    const samePath = location.pathname === displayLocation.pathname;
+
+    if (samePath) {
+      if (
+        location.key !== displayLocation.key ||
+        location.search !== displayLocation.search ||
+        location.hash !== displayLocation.hash
+      ) {
+        setDisplayLocation(location);
+      }
+      if (routePhase === "leaving") {
+        setRoutePhase(prefersReducedMotion ? "idle" : "entering");
+      }
+      return;
+    }
+
+    if (prefersReducedMotion) {
+      setDisplayLocation(location);
+      setRoutePhase("idle");
+      return;
+    }
+
+    if (routePhase !== "leaving") {
+      setRoutePhase("leaving");
+    }
+  }, [displayLocation, location, prefersReducedMotion, routePhase]);
 
   useLayoutEffect(() => {
     window.scrollTo(0, 0);
-  }, [location.pathname]);
+  }, [displayLocation.pathname]);
+
+  const handleRouteAnimationEnd = (event: AnimationEvent<HTMLDivElement>) => {
+    if (event.target !== event.currentTarget) return;
+
+    if (routePhase === "leaving") {
+      setDisplayLocation(location);
+      setRoutePhase("entering");
+      return;
+    }
+
+    if (routePhase === "entering") {
+      setRoutePhase("idle");
+    }
+  };
 
   return (
     <Layout>
-      <div className="route-transition" key={location.pathname}>
-        <Routes location={location}>
+      <div
+        className={`route-transition route-${routePhase}`}
+        onAnimationEnd={handleRouteAnimationEnd}
+        key={displayLocation.pathname}
+      >
+        <Routes location={displayLocation}>
           <Route path="/" element={<HomePage />} />
           <Route path="/articles" element={<ArticlesPage />} />
           <Route path="/posts/:slug" element={<PostPage />} />

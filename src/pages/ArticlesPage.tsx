@@ -29,6 +29,10 @@ export function ArticlesPage() {
   const filteredPosts = selectedCategory
     ? posts.filter((post) => (post.category || "随笔") === selectedCategory)
     : posts;
+  const visibleCategories = categories.filter(
+    (category) => category.postCount > 0 || category.name === selectedCategory,
+  );
+  const showFeaturedPost = filteredPosts.length >= 3 && filteredPosts.length % 2 === 1;
 
   const chooseCategory = (category: string) => {
     setSearchParams(category ? { category } : {}, { replace: true });
@@ -45,43 +49,38 @@ export function ArticlesPage() {
       </header>
 
       <div className="articles-layout">
-        <aside className="category-sidebar">
-          <div className="category-heading">
-            <span>分类</span>
-            <span>{posts.length} 篇</span>
-          </div>
-          <nav className="category-list" aria-label="按分类筛选文章">
-            <button
-              className={!selectedCategory ? "active" : ""}
-              type="button"
-              aria-pressed={!selectedCategory}
-              onClick={() => chooseCategory("")}
-            >
-              <span>全部文章</span>
-              <span>{posts.length}</span>
-            </button>
-            {categories.map((category) => (
-              <button
-                className={selectedCategory === category.name ? "active" : ""}
-                type="button"
-                aria-pressed={selectedCategory === category.name}
-                onClick={() => chooseCategory(category.name)}
-                key={category.id}
-              >
-                <span>{category.name}</span>
-                <span>{category.postCount}</span>
-              </button>
-            ))}
-          </nav>
-        </aside>
-
         <div className="articles-content">
-          <div className="articles-toolbar">
-            <h2>{selectedCategory || "全部文章"}</h2>
-            <span>{filteredPosts.length} 篇</span>
-          </div>
+          <header className="articles-toolbar">
+            <div className="articles-toolbar-title">
+              <h2>{selectedCategory || "全部文章"}</h2>
+              <span>{filteredPosts.length} 篇</span>
+            </div>
+            <nav className="category-list" aria-label="按分类筛选文章">
+              <button
+                className={!selectedCategory ? "active" : ""}
+                type="button"
+                aria-pressed={!selectedCategory}
+                onClick={() => chooseCategory("")}
+              >
+                <span>全部</span>
+                <span>{posts.length}</span>
+              </button>
+              {visibleCategories.map((category) => (
+                <button
+                  className={selectedCategory === category.name ? "active" : ""}
+                  type="button"
+                  aria-pressed={selectedCategory === category.name}
+                  onClick={() => chooseCategory(category.name)}
+                  key={category.id}
+                >
+                  <span>{category.name}</span>
+                  <span>{category.postCount}</span>
+                </button>
+              ))}
+            </nav>
+          </header>
           <div className="posts-feed">
-            {loading && <Loading label="正在取回文章" />}
+            {loading && <Loading label="正在取回文章…" />}
             {error && (
               <div className="message message-error" role="status" aria-live="polite">
                 {error}
@@ -107,9 +106,15 @@ export function ArticlesPage() {
               </div>
             )}
             {filteredPosts.length > 0 && (
-              <div className="post-grid">
+              <div
+                className={`post-grid${filteredPosts.length === 1 ? " single-post-grid" : ""}`}
+              >
                 {filteredPosts.map((post, index) => (
-                  <PostCard key={post.id} post={post} featured={index === 0} />
+                  <PostCard
+                    key={post.id}
+                    post={post}
+                    featured={showFeaturedPost && index === 0}
+                  />
                 ))}
               </div>
             )}
