@@ -2,6 +2,7 @@ import { Hono, type Context, type MiddlewareHandler } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import type {
   Category,
+  Post,
   PostInput,
   PostStatus,
   PostVisibility,
@@ -48,6 +49,7 @@ type PostRow = {
   category: string;
   excerpt: string;
   content: string;
+  like_count: number;
   status: PostStatus;
   visibility: PostVisibility;
   created_at: string;
@@ -64,6 +66,7 @@ type CategoryRow = {
 };
 
 const SESSION_COOKIE = "monolog_session";
+const VISITOR_COOKIE = "omniblog_visitor";
 const LOGIN_LIMIT = 10;
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const REGISTER_LIMIT = 5;
@@ -78,7 +81,7 @@ const toUser = (row: UserRow): User => ({
   createdAt: row.created_at,
 });
 
-const toPost = (row: PostRow) => ({
+const toPost = (row: PostRow, likedByVisitor?: boolean): Post => ({
   id: row.id,
   authorId: row.author_id,
   authorName: row.author_name,
@@ -87,6 +90,8 @@ const toPost = (row: PostRow) => ({
   category: row.category,
   excerpt: row.excerpt,
   content: row.content,
+  likeCount: Number(row.like_count ?? 0),
+  ...(likedByVisitor === undefined ? {} : { likedByVisitor }),
   status: row.status,
   visibility: row.visibility,
   createdAt: row.created_at,
@@ -455,7 +460,7 @@ app.get("/api/posts", async (c) => {
      ORDER BY posts.published_at DESC
      LIMIT 50`,
   ).all<PostRow>();
-  return c.json({ data: result.results.map(toPost) });
+  return c.json({ data: result.results.map((row) => toPost(row)) });
 });
 
 app.get("/api/posts/:slug", async (c) => {
@@ -474,7 +479,97 @@ app.get("/api/posts/:slug", async (c) => {
       return c.json({ error: "文章不存在或不可见。" }, 404);
     }
   }
-  return c.json({ data: toPost(row) });
+  const visitorId = getCookie(c, VISITOR_COOKIE);
+  const likedByVisitor = visitorId
+    ? Boolean(
+      await c.env.DB.prepare(
+        "SELECT 1 FROM post_likes WHERE post_id = ? AND visitor_id = ?",
+      )
+        .bind(row.id, visitorId)
+        .first(),
+    )
+    : false;
+  return c.json({ data: toPost(row, likedByVisitor) });
+});
+
+app.post("/api/posts/:slug/likes", async (c) => {
+  const post = await c.env.DB.prepare(
+    `SELECT id, like_count
+     FROM posts
+     WHERE slug = ? AND status = 'published' AND visibility <> 'private'`,
+  )
+    .bind(c.req.param("slug"))
+    .first<{ id: string; like_count: number }>();
+  if (!post) return c.json({ error: "文章不存在或不可见。" }, 404);
+
+  let visitorId = getCookie(c, VISITOR_COOKIE);
+  if (!visitorId) {
+    visitorId = crypto.randomUUID();
+    setCookie(c, VISITOR_COOKIE, visitorId, {
+      httpOnly: true,
+      sameSite: "Lax",
+      secure: new URL(c.req.url).protocol === "https:",
+      path: "/",
+      maxAge: 365 * 24 * 60 * 60,
+    });
+  }
+
+  const inserted = await c.env.DB.prepare(
+    `INSERT OR IGNORE INTO post_likes (post_id, visitor_id)
+     VALUES (?, ?)
+     RETURNING post_id`,
+  )
+    .bind(post.id, visitorId)
+    .first<{ post_id: string }>();
+  let likeCount = Number(post.like_count);
+  if (inserted) {
+    const updated = await c.env.DB.prepare(
+      "UPDATE posts SET like_count = like_count + 1 WHERE id = ? RETURNING like_count",
+    )
+      .bind(post.id)
+      .first<{ like_count: number }>();
+    likeCount = Number(updated?.like_count ?? likeCount + 1);
+  }
+
+  return c.json({ data: { likeCount, liked: true } });
+});
+
+app.delete("/api/posts/:slug/likes", async (c) => {
+  const post = await c.env.DB.prepare(
+    `SELECT id, like_count
+     FROM posts
+     WHERE slug = ? AND status = 'published' AND visibility <> 'private'`,
+  )
+    .bind(c.req.param("slug"))
+    .first<{ id: string; like_count: number }>();
+  if (!post) return c.json({ error: "文章不存在或不可见。" }, 404);
+
+  const visitorId = getCookie(c, VISITOR_COOKIE);
+  if (!visitorId) {
+    return c.json({ data: { likeCount: Number(post.like_count), liked: false } });
+  }
+
+  const removed = await c.env.DB.prepare(
+    `DELETE FROM post_likes
+     WHERE post_id = ? AND visitor_id = ?
+     RETURNING post_id`,
+  )
+    .bind(post.id, visitorId)
+    .first<{ post_id: string }>();
+  let likeCount = Number(post.like_count);
+  if (removed) {
+    const updated = await c.env.DB.prepare(
+      `UPDATE posts
+       SET like_count = CASE WHEN like_count > 0 THEN like_count - 1 ELSE 0 END
+       WHERE id = ?
+       RETURNING like_count`,
+    )
+      .bind(post.id)
+      .first<{ like_count: number }>();
+    likeCount = Number(updated?.like_count ?? Math.max(0, likeCount - 1));
+  }
+
+  return c.json({ data: { likeCount, liked: false } });
 });
 
 app.use("/api/me/*", requireUser);
@@ -590,7 +685,7 @@ app.get("/api/me/posts", async (c) => {
   )
     .bind(c.get("user").id)
     .all<PostRow>();
-  return c.json({ data: result.results.map(toPost) });
+  return c.json({ data: result.results.map((row) => toPost(row)) });
 });
 
 app.get("/api/me/posts/:id", async (c) => {

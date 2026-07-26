@@ -5,6 +5,7 @@ import hardeningMigration from "../migrations/0002_owner_and_auth_limits.sql?raw
 import categoryMigration from "../migrations/0004_add_post_categories.sql?raw";
 import categoriesMigration from "../migrations/0005_create_categories.sql?raw";
 import visibilityMigration from "../migrations/0006_add_post_visibility.sql?raw";
+import likesMigration from "../migrations/0007_add_post_likes.sql?raw";
 import type { Category, Post } from "../shared/types";
 import app, { type Bindings } from "./index";
 import {
@@ -44,6 +45,7 @@ beforeEach(async () => {
   await applyMigration(categoryMigration);
   await applyMigration(categoriesMigration);
   await applyMigration(visibilityMigration);
+  await applyMigration(likesMigration);
   bindings = {
     DB: database,
     ASSETS: {
@@ -328,6 +330,74 @@ describe("post authorization and lifecycle", () => {
     expect(updated.status).toBe(200);
     expect(((await updated.json()) as { data: Post }).data.visibility).toBe("unlisted");
     expect((await request(`/api/posts/${privatePost.slug}`)).status).toBe(200);
+  });
+});
+
+describe("post likes", () => {
+  it("persists one anonymous like per visitor and supports toggling it", async () => {
+    await seedUser("owner", "Owner", "owner@example.com", "owner password");
+    const ownerCookie = await sessionCookie("owner");
+    const created = await request("/api/me/posts", {
+      method: "POST",
+      headers: { ...JSON_HEADERS, Cookie: ownerCookie },
+      body: JSON.stringify({
+        title: "Liked article",
+        category: "随笔",
+        content: "## 第一节\n\nThis published post can receive a visitor like.",
+        status: "published",
+        visibility: "public",
+      }),
+    });
+    const post = ((await created.json()) as { data: Post }).data;
+    expect(post.likeCount).toBe(0);
+
+    const firstLike = await request(`/api/posts/${post.slug}/likes`, { method: "POST" });
+    expect(firstLike.status).toBe(200);
+    expect(await firstLike.json()).toEqual({ data: { likeCount: 1, liked: true } });
+    const visitorCookie = firstLike.headers.get("set-cookie")?.split(";", 1)[0];
+    expect(visitorCookie).toContain("omniblog_visitor=");
+
+    const duplicateLike = await request(`/api/posts/${post.slug}/likes`, {
+      method: "POST",
+      headers: { Cookie: visitorCookie! },
+    });
+    expect(await duplicateLike.json()).toEqual({ data: { likeCount: 1, liked: true } });
+
+    const detail = await request(`/api/posts/${post.slug}`, {
+      headers: { Cookie: visitorCookie! },
+    });
+    expect(((await detail.json()) as { data: Post }).data).toMatchObject({
+      likeCount: 1,
+      likedByVisitor: true,
+    });
+
+    const removed = await request(`/api/posts/${post.slug}/likes`, {
+      method: "DELETE",
+      headers: { Cookie: visitorCookie! },
+    });
+    expect(await removed.json()).toEqual({ data: { likeCount: 0, liked: false } });
+  });
+
+  it("does not expose likes for private or missing posts", async () => {
+    await seedUser("owner", "Owner", "owner@example.com", "owner password");
+    const ownerCookie = await sessionCookie("owner");
+    const created = await request("/api/me/posts", {
+      method: "POST",
+      headers: { ...JSON_HEADERS, Cookie: ownerCookie },
+      body: JSON.stringify({
+        title: "Private liked article",
+        category: "随笔",
+        content: "Private posts must not expose a public like endpoint.",
+        status: "published",
+        visibility: "private",
+      }),
+    });
+    const post = ((await created.json()) as { data: Post }).data;
+
+    expect((await request(`/api/posts/${post.slug}/likes`, { method: "POST" })).status)
+      .toBe(404);
+    expect((await request("/api/posts/missing/likes", { method: "DELETE" })).status)
+      .toBe(404);
   });
 });
 

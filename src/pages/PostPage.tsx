@@ -1,12 +1,18 @@
-import { ArrowLeft } from "lucide-react";
-import { useEffect, useState } from "react";
-import Markdown from "react-markdown";
+import { ArrowLeft, Heart } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import Markdown, { type Components } from "react-markdown";
 import { Link, useLocation, useParams } from "react-router-dom";
 import remarkGfm from "remark-gfm";
 import type { Post } from "../../shared/types";
 import { Loading } from "../components/Loading";
 import { api } from "../lib/api";
 import { formatDate, readingTime } from "../lib/format";
+import { extractMarkdownHeadings } from "../lib/markdown";
+
+type LikeResponse = {
+  likeCount: number;
+  liked: boolean;
+};
 
 export function PostPage() {
   const { slug } = useParams();
@@ -17,12 +23,23 @@ export function PostPage() {
   );
   const [error, setError] = useState("");
   const [showLoading, setShowLoading] = useState(false);
+  const [likePending, setLikePending] = useState(false);
+  const [likeMessage, setLikeMessage] = useState("");
+  const headings = useMemo(
+    () => post ? extractMarkdownHeadings(post.content) : [],
+    [post?.content],
+  );
+  const [activeHeadingId, setActiveHeadingId] = useState("");
 
   useEffect(() => {
-    if (!slug || post?.slug === slug) return;
+    if (!slug) return;
     let cancelled = false;
-    const loadingTimer = window.setTimeout(() => setShowLoading(true), 180);
+    const hasPreview = linkedPost?.slug === slug;
+    const loadingTimer = hasPreview
+      ? undefined
+      : window.setTimeout(() => setShowLoading(true), 180);
 
+    setError("");
     api<Post>(`/api/posts/${encodeURIComponent(slug)}`)
       .then((nextPost) => {
         if (!cancelled) setPost(nextPost);
@@ -31,15 +48,81 @@ export function PostPage() {
         if (!cancelled) setError(reason.message);
       })
       .finally(() => {
-        window.clearTimeout(loadingTimer);
+        if (loadingTimer !== undefined) window.clearTimeout(loadingTimer);
         if (!cancelled) setShowLoading(false);
       });
 
     return () => {
       cancelled = true;
-      window.clearTimeout(loadingTimer);
+      if (loadingTimer !== undefined) window.clearTimeout(loadingTimer);
     };
-  }, [post?.slug, slug]);
+  }, [linkedPost?.slug, slug]);
+
+  useEffect(() => {
+    if (headings.length === 0) {
+      setActiveHeadingId("");
+      return;
+    }
+
+    let frame = 0;
+    const updateActiveHeading = () => {
+      let currentId = headings[0].id;
+      for (const heading of headings) {
+        const element = document.getElementById(heading.id);
+        if (element && element.getBoundingClientRect().top <= 150) {
+          currentId = heading.id;
+        } else {
+          break;
+        }
+      }
+      setActiveHeadingId(currentId);
+      frame = 0;
+    };
+    const handleScroll = () => {
+      if (!frame) frame = window.requestAnimationFrame(updateActiveHeading);
+    };
+
+    updateActiveHeading();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, [headings]);
+
+  useEffect(() => {
+    if (!location.hash || headings.length === 0) return;
+    const frame = window.requestAnimationFrame(() => {
+      let id = location.hash.slice(1);
+      try {
+        id = decodeURIComponent(id);
+      } catch {
+        return;
+      }
+      document.getElementById(id)?.scrollIntoView();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [headings, location.hash]);
+
+  const toggleLike = async () => {
+    if (!post || likePending || post.visibility === "private") return;
+    setLikePending(true);
+    setLikeMessage("");
+    try {
+      const next = await api<LikeResponse>(
+        `/api/posts/${encodeURIComponent(post.slug)}/likes`,
+        { method: post.likedByVisitor ? "DELETE" : "POST" },
+      );
+      setPost((current) => current && current.id === post.id
+        ? { ...current, likeCount: next.likeCount, likedByVisitor: next.liked }
+        : current);
+      setLikeMessage(next.liked ? "已为这篇文章点赞。" : "已取消点赞。");
+    } catch (reason) {
+      setLikeMessage(reason instanceof Error ? reason.message : "操作失败，请稍后重试。");
+    } finally {
+      setLikePending(false);
+    }
+  };
 
   if (error) {
     return (
@@ -59,6 +142,20 @@ export function PostPage() {
     );
   }
 
+  let headingIndex = 0;
+  const markdownComponents: Components = {
+    h2({ node: _node, children, ...properties }) {
+      const heading = headings[headingIndex++];
+      return <h2 {...properties} id={heading?.id}>{children}</h2>;
+    },
+    h3({ node: _node, children, ...properties }) {
+      const heading = headings[headingIndex++];
+      return <h3 {...properties} id={heading?.id}>{children}</h3>;
+    },
+  };
+  const hasTableOfContents = headings.length > 0;
+  const canLike = post.visibility !== "private";
+
   return (
     <article className="article section">
       <Link className="back-link" to="/articles">
@@ -77,14 +174,65 @@ export function PostPage() {
         </div>
         <h1>{post.title}</h1>
       </header>
-      <div className="article-rule" />
-      <div className="article-content">
-        <Markdown remarkPlugins={[remarkGfm]} skipHtml>{post.content}</Markdown>
+
+      <div className={`article-reading-grid${hasTableOfContents ? "" : " without-toc"}${canLike ? "" : " without-actions"}`}>
+        {canLike && (
+          <aside className="article-actions" aria-label="文章互动">
+            <div className="article-actions-sticky">
+              <button
+                className={`article-like${post.likedByVisitor ? " liked" : ""}`}
+                type="button"
+                onClick={() => void toggleLike()}
+                disabled={likePending}
+                aria-pressed={Boolean(post.likedByVisitor)}
+                aria-label={post.likedByVisitor ? "取消点赞" : "为文章点赞"}
+              >
+                <span className="article-like-icon" aria-hidden="true">
+                  <Heart size={19} fill={post.likedByVisitor ? "currentColor" : "none"} />
+                </span>
+                <strong>{post.likeCount}</strong>
+                <span>{post.likedByVisitor ? "已赞" : "点赞"}</span>
+              </button>
+              <span className="sr-only" role="status" aria-live="polite">{likeMessage}</span>
+            </div>
+          </aside>
+        )}
+
+        <div className="article-body">
+          <div className="article-content">
+            <Markdown components={markdownComponents} remarkPlugins={[remarkGfm]} skipHtml>
+              {post.content}
+            </Markdown>
+          </div>
+          <footer className="article-end">
+            <p>{post.likeCount > 0 ? `${post.likeCount} 人喜欢这篇文章。` : "感谢你读到这里。"}</p>
+            <Link to="/articles">继续浏览文章</Link>
+          </footer>
+        </div>
+
+        {hasTableOfContents && (
+          <nav className="article-toc" aria-label="本文目录">
+            <div className="article-toc-sticky">
+              <p>本文目录</p>
+              <ol>
+                {headings.map((heading, index) => (
+                  <li className={`level-${heading.level}`} key={heading.id}>
+                    <a
+                      className={activeHeadingId === heading.id ? "active" : undefined}
+                      href={`#${heading.id}`}
+                      onClick={() => setActiveHeadingId(heading.id)}
+                      aria-current={activeHeadingId === heading.id ? "location" : undefined}
+                    >
+                      <span>{String(index + 1).padStart(2, "0")}</span>
+                      {heading.text}
+                    </a>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          </nav>
+        )}
       </div>
-      <footer className="article-end">
-        <p>感谢你读到这里。</p>
-        <Link to="/articles">继续浏览文章</Link>
-      </footer>
     </article>
   );
 }

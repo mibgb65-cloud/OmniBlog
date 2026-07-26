@@ -17,6 +17,8 @@ export type Post = {
   category: string;
   excerpt: string;
   content: string;
+  likeCount: number;
+  likedByVisitor?: boolean;
   status: PostStatus;
   visibility: PostVisibility;
   createdAt: string;

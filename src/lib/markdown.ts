@@ -4,6 +4,80 @@ export type MarkdownImport = {
   content: string;
 };
 
+export type MarkdownHeading = {
+  id: string;
+  level: 2 | 3;
+  text: string;
+};
+
+function plainHeadingText(value: string): string {
+  return value
+    .replace(/!\[([^\]]*)\]\([^)]+\)/g, "$1")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/<[^>]+>/g, "")
+    .replace(/[`*_~]/g, "")
+    .replace(/\\([\\`*_[\]{}()#+.!-])/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function headingId(text: string): string {
+  return text
+    .normalize("NFKC")
+    .toLocaleLowerCase()
+    .replace(/[^\p{Letter}\p{Number}\s-]/gu, "")
+    .trim()
+    .replace(/[\s-]+/g, "-") || "section";
+}
+
+export function extractMarkdownHeadings(source: string): MarkdownHeading[] {
+  const headings: MarkdownHeading[] = [];
+  const duplicateCounts = new Map<string, number>();
+  const lines = source.replace(/\r\n/g, "\n").split("\n");
+  let fence: { marker: string; length: number } | null = null;
+
+  const addHeading = (level: 2 | 3, rawText: string) => {
+    const text = plainHeadingText(rawText.replace(/\s+#+\s*$/, ""));
+    if (!text) return;
+    const baseId = headingId(text);
+    const count = (duplicateCounts.get(baseId) ?? 0) + 1;
+    duplicateCounts.set(baseId, count);
+    headings.push({ id: count === 1 ? baseId : `${baseId}-${count}`, level, text });
+  };
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const fenceMatch = line.match(/^ {0,3}(`{3,}|~{3,})/);
+    if (fenceMatch) {
+      const marker = fenceMatch[1][0];
+      if (!fence) {
+        fence = { marker, length: fenceMatch[1].length };
+      } else if (fence.marker === marker && fenceMatch[1].length >= fence.length) {
+        fence = null;
+      }
+      continue;
+    }
+    if (fence) continue;
+
+    const atxHeading = line.match(/^ {0,3}(#{2,3})(?:[ \t]+|$)(.*)$/);
+    if (atxHeading) {
+      addHeading(atxHeading[1].length as 2 | 3, atxHeading[2]);
+      continue;
+    }
+
+    if (
+      line.trim()
+      && index + 1 < lines.length
+      && /^ {0,3}-{2,}\s*$/.test(lines[index + 1])
+    ) {
+      addHeading(2, line);
+      index += 1;
+    }
+  }
+
+  return headings;
+}
+
 function unquote(value: string): string {
   const trimmed = value.trim();
   if (
