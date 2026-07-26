@@ -37,6 +37,7 @@ beforeEach(async () => {
   miniflare = new Miniflare({
     compatibilityDate: "2026-07-24",
     d1Databases: { DB: "monolog-test" },
+    r2Buckets: { MEDIA: "monolog-media-test" },
     modules: true,
     script: "export default { fetch() { return new Response('ok'); } };",
   });
@@ -48,6 +49,7 @@ beforeEach(async () => {
   await applyMigration(likesMigration);
   bindings = {
     DB: database,
+    MEDIA: await miniflare.getR2Bucket("MEDIA") as unknown as R2Bucket,
     ASSETS: {
       fetch: () => Promise.resolve(new Response("Not found", { status: 404 })),
     } as unknown as Fetcher,
@@ -398,6 +400,71 @@ describe("post likes", () => {
       .toBe(404);
     expect((await request("/api/posts/missing/likes", { method: "DELETE" })).status)
       .toBe(404);
+  });
+});
+
+describe("media uploads", () => {
+  it("stores a validated image in R2 and serves it with safe cache headers", async () => {
+    await seedUser("owner", "Owner", "owner@example.com", "owner password");
+    const ownerCookie = await sessionCookie("owner");
+    const png = new Uint8Array([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+      0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
+    ]);
+    const formData = new FormData();
+    formData.set("file", new File([png], "example.png", { type: "image/png" }));
+
+    const uploaded = await request("/api/me/media", {
+      method: "POST",
+      headers: { Cookie: ownerCookie },
+      body: formData,
+    });
+    expect(uploaded.status).toBe(201);
+    const payload = (await uploaded.json()) as {
+      data: { contentType: string; key: string; size: number; url: string };
+    };
+    expect(payload.data).toMatchObject({
+      contentType: "image/png",
+      size: png.byteLength,
+    });
+    expect(payload.data.key).toMatch(/^images\/\d{4}\/\d{2}\/[\w-]+\.png$/);
+
+    const image = await request(payload.data.url);
+    expect(image.status).toBe(200);
+    expect(image.headers.get("content-type")).toBe("image/png");
+    expect(image.headers.get("content-length")).toBe(String(png.byteLength));
+    expect(image.headers.get("cache-control")).toBe("public, max-age=31536000, immutable");
+    expect(image.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(new Uint8Array(await image.arrayBuffer())).toEqual(png);
+  });
+
+  it("requires authentication and rejects files whose bytes are not a supported image", async () => {
+    const unauthenticatedData = new FormData();
+    unauthenticatedData.set(
+      "file",
+      new File([new Uint8Array([0xff, 0xd8, 0xff])], "photo.jpg", { type: "image/jpeg" }),
+    );
+    expect((await request("/api/me/media", {
+      method: "POST",
+      body: unauthenticatedData,
+    })).status).toBe(401);
+
+    await seedUser("owner", "Owner", "owner@example.com", "owner password");
+    const ownerCookie = await sessionCookie("owner");
+    const invalidData = new FormData();
+    invalidData.set(
+      "file",
+      new File(["<svg><script /></svg>"], "unsafe.svg", { type: "image/svg+xml" }),
+    );
+    const invalid = await request("/api/me/media", {
+      method: "POST",
+      headers: { Cookie: ownerCookie },
+      body: invalidData,
+    });
+    expect(invalid.status).toBe(400);
+    expect(await invalid.json()).toEqual({
+      error: "仅支持 JPEG、PNG、WebP、GIF 或 AVIF 图片。",
+    });
   });
 });
 

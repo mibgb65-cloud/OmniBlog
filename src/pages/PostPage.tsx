@@ -152,6 +152,9 @@ export function PostPage() {
       const heading = headings[headingIndex++];
       return <h3 {...properties} id={heading?.id}>{children}</h3>;
     },
+    img({ node: _node, alt = "", ...properties }) {
+      return <img {...properties} alt={alt} loading="lazy" decoding="async" />;
+    },
   };
   const hasTableOfContents = headings.length > 0;
   const canLike = post.visibility !== "private";

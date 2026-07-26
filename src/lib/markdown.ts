@@ -10,6 +10,37 @@ export type MarkdownHeading = {
   text: string;
 };
 
+export type MarkdownInsertion = {
+  content: string;
+  selectionEnd: number;
+  selectionStart: number;
+};
+
+export function insertMarkdownImage(
+  source: string,
+  selectionStart: number,
+  selectionEnd: number,
+  url: string,
+): MarkdownInsertion {
+  const before = source.slice(0, selectionStart);
+  const after = source.slice(selectionEnd);
+  const prefix = before && !before.endsWith("\n\n")
+    ? before.endsWith("\n") ? "\n" : "\n\n"
+    : "";
+  const suffix = after && !after.startsWith("\n\n")
+    ? after.startsWith("\n") ? "\n" : "\n\n"
+    : "";
+  const alt = "图片说明";
+  const image = `![${alt}](${url})`;
+  const altStart = before.length + prefix.length + 2;
+
+  return {
+    content: `${before}${prefix}${image}${suffix}${after}`,
+    selectionStart: altStart,
+    selectionEnd: altStart + alt.length,
+  };
+}
+
 function plainHeadingText(value: string): string {
   return value
     .replace(/!\[([^\]]*)\]\([^)]+\)/g, "$1")

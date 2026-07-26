@@ -2968,6 +2968,108 @@ a {
   line-height: 2;
 }
 
+.editor-content-section {
+  min-width: 0;
+}
+
+.editor-content-toolbar {
+  display: flex;
+  margin-bottom: 8px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.editor-content-toolbar > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.editor-content-toolbar strong {
+  font-size: 13px;
+}
+
+.editor-content-toolbar span {
+  color: var(--faint);
+  font-size: 11px;
+}
+
+.editor-image-upload {
+  min-height: 40px;
+  flex: 0 0 auto;
+  padding: 0 13px;
+  border-radius: 10px;
+  font-size: 12px;
+}
+
+.editor-upload-spinner {
+  animation: editor-upload-spin 800ms linear infinite;
+}
+
+@keyframes editor-upload-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.editor-content-shell {
+  position: relative;
+  margin: 0 -20px;
+  padding: 18px 20px;
+  border: 1px solid transparent;
+  border-radius: 16px;
+  transition: border-color 180ms ease, background-color 180ms ease;
+}
+
+.editor-content-shell.dragging {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 6%, transparent);
+  user-select: none;
+}
+
+.editor-content-shell.uploading textarea {
+  opacity: 0.62;
+}
+
+.editor-drop-overlay {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px dashed color-mix(in srgb, var(--primary) 58%, var(--line));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-solid) 94%, transparent);
+  color: var(--primary);
+  pointer-events: none;
+  inset: 8px;
+}
+
+.editor-drop-overlay strong {
+  font-size: 13px;
+}
+
+.editor-image-status {
+  min-height: 22px;
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.editor-image-status.error {
+  color: var(--danger);
+}
+
+.editor-image-status.success {
+  color: color-mix(in srgb, #1d9b3f 85%, var(--text));
+}
+
+:root[data-theme="dark"] .editor-image-status.success {
+  color: #63d978;
+}
+
 .editor-actions {
   display: flex;
   margin-top: 54px;

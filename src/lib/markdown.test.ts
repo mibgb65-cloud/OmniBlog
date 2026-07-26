@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractMarkdownHeadings, parseMarkdownImport } from "./markdown";
+import { extractMarkdownHeadings, insertMarkdownImage, parseMarkdownImport } from "./markdown";
 
 describe("parseMarkdownImport", () => {
   it("reads title and category frontmatter and removes the duplicate heading", () => {
@@ -53,5 +53,20 @@ describe("extractMarkdownHeadings", () => {
     ].join("\n"))).toEqual([
       { id: "正文标题", level: 2, text: "正文标题" },
     ]);
+  });
+});
+
+describe("insertMarkdownImage", () => {
+  it("inserts a block image and selects its alt text", () => {
+    expect(insertMarkdownImage("前文\n后文", 3, 3, "/media/images/example.png")).toEqual({
+      content: "前文\n\n![图片说明](/media/images/example.png)\n\n后文",
+      selectionStart: 6,
+      selectionEnd: 10,
+    });
+  });
+
+  it("does not add blank lines around an image in an empty document", () => {
+    expect(insertMarkdownImage("", 0, 0, "/media/images/example.webp").content)
+      .toBe("![图片说明](/media/images/example.webp)");
   });
 });

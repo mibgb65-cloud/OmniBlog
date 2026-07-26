@@ -46,3 +46,10 @@ export type RegistrationStatus = {
   open: boolean;
   configured: boolean;
 };
+
+export type MediaUpload = {
+  contentType: string;
+  key: string;
+  size: number;
+  url: string;
+};

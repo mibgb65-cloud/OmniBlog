@@ -2,6 +2,7 @@ import { Hono, type Context, type MiddlewareHandler } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import type {
   Category,
+  MediaUpload,
   Post,
   PostInput,
   PostStatus,
@@ -20,6 +21,7 @@ import {
 
 export type Bindings = {
   DB: D1Database;
+  MEDIA: R2Bucket;
   ASSETS: Fetcher;
   OWNER_SETUP_TOKEN?: string;
 };
@@ -71,6 +73,7 @@ const LOGIN_LIMIT = 10;
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const REGISTER_LIMIT = 5;
 const REGISTER_WINDOW_MS = 60 * 60 * 1000;
+const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 const app = new Hono<AppEnv>();
 const categoryInitialization = new WeakMap<D1Database, Promise<void>>();
 
@@ -243,6 +246,55 @@ function makeExcerpt(content: string): string {
     .replace(/\s+/g, " ")
     .trim();
   return clean.length > 140 ? `${clean.slice(0, 140)}…` : clean;
+}
+
+type SupportedImage = {
+  contentType: string;
+  extension: string;
+};
+
+function detectImageType(bytes: Uint8Array): SupportedImage | null {
+  const startsWith = (...signature: number[]) =>
+    signature.every((value, index) => bytes[index] === value);
+
+  if (startsWith(0xff, 0xd8, 0xff)) {
+    return { contentType: "image/jpeg", extension: "jpg" };
+  }
+  if (startsWith(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a)) {
+    return { contentType: "image/png", extension: "png" };
+  }
+  if (
+    bytes.length >= 6
+    && startsWith(0x47, 0x49, 0x46, 0x38)
+    && (bytes[4] === 0x37 || bytes[4] === 0x39)
+    && bytes[5] === 0x61
+  ) {
+    return { contentType: "image/gif", extension: "gif" };
+  }
+  if (
+    bytes.length >= 12
+    && startsWith(0x52, 0x49, 0x46, 0x46)
+    && bytes[8] === 0x57
+    && bytes[9] === 0x45
+    && bytes[10] === 0x42
+    && bytes[11] === 0x50
+  ) {
+    return { contentType: "image/webp", extension: "webp" };
+  }
+  if (
+    bytes.length >= 12
+    && bytes[4] === 0x66
+    && bytes[5] === 0x74
+    && bytes[6] === 0x79
+    && bytes[7] === 0x70
+    && bytes[8] === 0x61
+    && bytes[9] === 0x76
+    && bytes[10] === 0x69
+    && (bytes[11] === 0x66 || bytes[11] === 0x73)
+  ) {
+    return { contentType: "image/avif", extension: "avif" };
+  }
+  return null;
 }
 
 async function rateLimitKey(c: Context<AppEnv>, scope: string): Promise<string> {
@@ -436,6 +488,24 @@ app.get("/api/auth/me", async (c) => {
   return c.json({ data: user });
 });
 
+app.get("/media/*", async (c) => {
+  const key = c.req.path.slice("/media/".length);
+  if (!key.startsWith("images/")) return c.notFound();
+
+  const object = await c.env.MEDIA.get(key);
+  if (!object) return c.notFound();
+
+  const headers = new Headers();
+  if (object.httpMetadata?.contentType) {
+    headers.set("Content-Type", object.httpMetadata.contentType);
+  }
+  headers.set("Cache-Control", "public, max-age=31536000, immutable");
+  headers.set("Content-Length", String(object.size));
+  headers.set("ETag", object.httpEtag);
+  headers.set("X-Content-Type-Options", "nosniff");
+  return new Response(object.body, { headers });
+});
+
 app.get("/api/categories", async (c) => {
   await ensureCategories(c.env.DB);
   const result = await c.env.DB.prepare(
@@ -573,6 +643,52 @@ app.delete("/api/posts/:slug/likes", async (c) => {
 });
 
 app.use("/api/me/*", requireUser);
+
+app.post("/api/me/media", async (c) => {
+  let formData: FormData;
+  try {
+    formData = await c.req.raw.formData();
+  } catch {
+    return jsonError(c, "无法读取上传内容，请重新选择图片。");
+  }
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    return jsonError(c, "请选择需要上传的图片。");
+  }
+  if (file.size > MAX_IMAGE_BYTES) {
+    return jsonError(c, "图片不能超过 8 MB，请压缩后重试。");
+  }
+
+  const signature = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+  const imageType = detectImageType(signature);
+  if (!imageType) {
+    return jsonError(c, "仅支持 JPEG、PNG、WebP、GIF 或 AVIF 图片。");
+  }
+
+  const now = new Date();
+  const key = [
+    "images",
+    String(now.getUTCFullYear()),
+    String(now.getUTCMonth() + 1).padStart(2, "0"),
+    `${crypto.randomUUID()}.${imageType.extension}`,
+  ].join("/");
+  await c.env.MEDIA.put(key, file, {
+    httpMetadata: {
+      cacheControl: "public, max-age=31536000, immutable",
+      contentType: imageType.contentType,
+    },
+    customMetadata: { authorId: c.get("user").id },
+  });
+
+  const upload: MediaUpload = {
+    contentType: imageType.contentType,
+    key,
+    size: file.size,
+    url: `/media/${key}`,
+  };
+  return c.json({ data: upload }, 201);
+});
 
 app.get("/api/me/categories", async (c) => {
   await ensureCategories(c.env.DB);

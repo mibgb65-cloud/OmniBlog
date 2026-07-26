@@ -15,7 +15,7 @@ export async function api<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(path, {
     ...options,
     headers: {
-      ...(options?.body ? { "Content-Type": "application/json" } : {}),
+      ...(typeof options?.body === "string" ? { "Content-Type": "application/json" } : {}),
       ...options?.headers,
     },
   });
@@ -26,4 +26,3 @@ export async function api<T>(path: string, options?: RequestInit): Promise<T> {
   }
   return (payload as ApiEnvelope<T>).data;
 }
-
