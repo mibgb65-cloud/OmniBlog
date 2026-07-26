@@ -14,6 +14,9 @@ export function Layout({ children }: { children: ReactNode }) {
     document.documentElement.dataset.theme === "dark" ? "dark" : "light",
   );
   const [showIntro, setShowIntro] = useState(() => {
+    if (!isHome || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      return false;
+    }
     try {
       return sessionStorage.getItem("monolog-intro-seen") !== "true";
     } catch {
@@ -36,8 +39,13 @@ export function Layout({ children }: { children: ReactNode }) {
     } catch {
       // The animation can still play when session storage is unavailable.
     }
-    const timer = window.setTimeout(() => setShowIntro(false), 1350);
-    return () => window.clearTimeout(timer);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const timer = window.setTimeout(() => setShowIntro(false), 3250);
+    return () => {
+      window.clearTimeout(timer);
+      document.body.style.overflow = previousOverflow;
+    };
   }, [showIntro]);
 
   const handleLogout = async () => {
@@ -46,15 +54,43 @@ export function Layout({ children }: { children: ReactNode }) {
   };
 
   return (
-    <div className={`site-shell${isHome ? " home-route" : ""}`}>
+    <div
+      className={`site-shell${isHome ? " home-route" : ""}${
+        showIntro ? " intro-active" : " intro-complete"
+      }`}
+    >
       {showIntro && (
-        <div className="intro-screen" aria-hidden="true">
-          <div className="intro-lockup">
-            <span className="intro-mark">O</span>
-            <span className="intro-name">OmniBlog</span>
-            <span className="intro-line" />
-            <span className="intro-copy">写下值得留下的想法</span>
+        <div className="intro-screen">
+          <div className="intro-canvas" aria-hidden="true">
+            <div className="intro-grid">
+              <span /><span /><span /><span />
+            </div>
+            <div className="intro-meta">
+              <span>OB / 001</span>
+              <span>INDEPENDENT JOURNAL</span>
+            </div>
+            <div className="intro-symbol">
+              <span className="intro-symbol-ring intro-symbol-ring-outer" />
+              <span className="intro-symbol-ring intro-symbol-ring-inner" />
+              <span className="intro-symbol-dot" />
+              <strong>O</strong>
+            </div>
+            <div className="intro-wordmark" aria-label="OmniBlog">
+              <span><i>OMNI</i></span>
+              <span><i>BLOG</i></span>
+            </div>
+            <p className="intro-statement">写下值得留下的想法</p>
+            <div className="intro-progress">
+              <span />
+            </div>
+            <div className="intro-count">
+              <span className="intro-count-current" />
+              <span>100</span>
+            </div>
           </div>
+          <button className="intro-skip" type="button" onClick={() => setShowIntro(false)}>
+            跳过开场
+          </button>
         </div>
       )}
       <a className="skip-link" href="#main-content">
