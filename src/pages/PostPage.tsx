@@ -5,6 +5,7 @@ import { Link, useLocation, useParams } from "react-router-dom";
 import remarkGfm from "remark-gfm";
 import type { Post } from "../../shared/types";
 import { Loading } from "../components/Loading";
+import { Seo } from "../components/Seo";
 import { api } from "../lib/api";
 import { formatDate, readingTime } from "../lib/format";
 import { extractMarkdownHeadings } from "../lib/markdown";
@@ -17,10 +18,7 @@ type LikeResponse = {
 export function PostPage() {
   const { slug } = useParams();
   const location = useLocation();
-  const linkedPost = (location.state as { post?: Post } | null)?.post;
-  const [post, setPost] = useState<Post | null>(
-    linkedPost && linkedPost.slug === slug ? linkedPost : null,
-  );
+  const [post, setPost] = useState<Post | null>(null);
   const [error, setError] = useState("");
   const [showLoading, setShowLoading] = useState(false);
   const [likePending, setLikePending] = useState(false);
@@ -34,11 +32,10 @@ export function PostPage() {
   useEffect(() => {
     if (!slug) return;
     let cancelled = false;
-    const hasPreview = linkedPost?.slug === slug;
-    const loadingTimer = hasPreview
-      ? undefined
-      : window.setTimeout(() => setShowLoading(true), 180);
+    const loadingTimer = window.setTimeout(() => setShowLoading(true), 180);
 
+    setPost(null);
+    setShowLoading(false);
     setError("");
     api<Post>(`/api/posts/${encodeURIComponent(slug)}`)
       .then((nextPost) => {
@@ -48,15 +45,15 @@ export function PostPage() {
         if (!cancelled) setError(reason.message);
       })
       .finally(() => {
-        if (loadingTimer !== undefined) window.clearTimeout(loadingTimer);
+        window.clearTimeout(loadingTimer);
         if (!cancelled) setShowLoading(false);
       });
 
     return () => {
       cancelled = true;
-      if (loadingTimer !== undefined) window.clearTimeout(loadingTimer);
+      window.clearTimeout(loadingTimer);
     };
-  }, [linkedPost?.slug, slug]);
+  }, [slug]);
 
   useEffect(() => {
     if (headings.length === 0) {
@@ -127,6 +124,12 @@ export function PostPage() {
   if (error) {
     return (
       <section className="section not-found">
+        <Seo
+          title="文章不存在 — OmniBlog"
+          description="这篇文章不存在、尚未发布，或当前不可见。"
+          path={`/posts/${slug ?? ""}`}
+          noIndex
+        />
         <span className="empty-number">404</span>
         <h1>没有找到这篇文章</h1>
         <p>{error}</p>
@@ -161,6 +164,16 @@ export function PostPage() {
 
   return (
     <article className="article section">
+      <Seo
+        title={`${post.title} — OmniBlog`}
+        description={post.excerpt}
+        path={`/posts/${post.slug}`}
+        type="article"
+        publishedAt={post.publishedAt}
+        modifiedAt={post.updatedAt}
+        authorName={post.authorName}
+        noIndex={post.visibility !== "public"}
+      />
       <Link className="back-link" to="/articles">
         <ArrowLeft size={17} aria-hidden="true" />
         返回所有文章

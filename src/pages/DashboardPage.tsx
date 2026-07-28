@@ -1,15 +1,29 @@
-import { Check, Edit3, ExternalLink, Eye, FileText, Plus, Tag, Trash2, X } from "lucide-react";
+import {
+  Check,
+  Edit3,
+  ExternalLink,
+  Eye,
+  FileText,
+  Images,
+  LogOut,
+  Plus,
+  Tag,
+  Trash2,
+  X,
+} from "lucide-react";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
-import type { Category, Post, PostVisibility } from "../../shared/types";
+import { Link, useNavigate } from "react-router-dom";
+import type { AdminPostSummary, Category, PostVisibility } from "../../shared/types";
 import { Loading } from "../components/Loading";
+import { Seo } from "../components/Seo";
 import { api } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { formatDate } from "../lib/format";
 
 export function DashboardPage() {
-  const { user } = useAuth();
-  const [posts, setPosts] = useState<Post[]>([]);
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const [posts, setPosts] = useState<AdminPostSummary[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -23,7 +37,7 @@ export function DashboardPage() {
   const load = useCallback(() => {
     setLoading(true);
     Promise.all([
-      api<Post[]>("/api/me/posts"),
+      api<AdminPostSummary[]>("/api/me/posts"),
       api<Category[]>("/api/me/categories"),
     ])
       .then(([nextPosts, nextCategories]) => {
@@ -36,7 +50,7 @@ export function DashboardPage() {
 
   useEffect(load, [load]);
 
-  const remove = async (post: Post) => {
+  const remove = async (post: AdminPostSummary) => {
     if (!window.confirm(`确定删除《${post.title}》吗？此操作无法撤销。`)) return;
     try {
       await api<boolean>(`/api/me/posts/${post.id}`, { method: "DELETE" });
@@ -51,12 +65,12 @@ export function DashboardPage() {
     }
   };
 
-  const changeVisibility = async (post: Post, visibility: PostVisibility) => {
+  const changeVisibility = async (post: AdminPostSummary, visibility: PostVisibility) => {
     if (post.visibility === visibility) return;
     setVisibilityBusy(post.id);
     setError("");
     try {
-      const updated = await api<Post>(`/api/me/posts/${post.id}/visibility`, {
+      const updated = await api<AdminPostSummary>(`/api/me/posts/${post.id}/visibility`, {
         method: "PATCH",
         body: JSON.stringify({ visibility }),
       });
@@ -131,18 +145,43 @@ export function DashboardPage() {
 
   const published = posts.filter((post) => post.status === "published").length;
 
+  const handleLogout = async () => {
+    await logout();
+    navigate("/");
+  };
+
   return (
     <section className="dashboard section">
+      <Seo
+        title="我的文章 — OmniBlog"
+        description="管理 OmniBlog 的文章、草稿与分类。"
+        path="/dashboard"
+        noIndex
+      />
       <header className="dashboard-heading">
         <div>
           <span className="eyebrow">你的写作空间</span>
           <h1>你好，{user?.name}。</h1>
           <p>所有想法都值得先被记录，再决定是否公开。</p>
         </div>
-        <Link className="button button-primary" to="/write">
-          <Plus size={18} aria-hidden="true" />
-          新建文章
-        </Link>
+        <div className="dashboard-heading-actions">
+          <Link className="button button-secondary" to="/dashboard/media">
+            <Images size={18} aria-hidden="true" />
+            媒体库
+          </Link>
+          <Link className="button button-primary" to="/write">
+            <Plus size={18} aria-hidden="true" />
+            新建文章
+          </Link>
+          <button
+            className="button button-secondary mobile-only"
+            type="button"
+            onClick={() => void handleLogout()}
+          >
+            <LogOut size={18} aria-hidden="true" />
+            退出登录
+          </button>
+        </div>
       </header>
 
       <div className="stats">
@@ -245,6 +284,8 @@ export function DashboardPage() {
             <label className="sr-only" htmlFor="new-category">新分类名称</label>
             <input
               id="new-category"
+              name="new-category"
+              autoComplete="off"
               value={newCategory}
               onChange={(event) => setNewCategory(event.target.value)}
               placeholder="输入新分类名称"
@@ -277,6 +318,8 @@ export function DashboardPage() {
                   </label>
                   <input
                     id={`category-${category.id}`}
+                    name="category-name"
+                    autoComplete="off"
                     value={editingName}
                     onChange={(event) => setEditingName(event.target.value)}
                     minLength={1}

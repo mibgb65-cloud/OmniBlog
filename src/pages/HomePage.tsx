@@ -1,9 +1,10 @@
 import { ArrowDown, ArrowRight, ArrowUpRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import type { Post } from "../../shared/types";
+import type { Category, PaginatedPosts, PostSummary } from "../../shared/types";
+import { Seo } from "../components/Seo";
 import { api } from "../lib/api";
-import { formatDate, readingTime } from "../lib/format";
+import { formatDate, formatReadingMinutes } from "../lib/format";
 
 const writingPrinciples = [
   {
@@ -24,28 +25,40 @@ const writingPrinciples = [
 ];
 
 export function HomePage() {
-  const [posts, setPosts] = useState<Post[]>([]);
+  const [posts, setPosts] = useState<PostSummary[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [totalPosts, setTotalPosts] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    api<Post[]>("/api/posts")
-      .then(setPosts)
+    Promise.all([
+      api<PaginatedPosts>("/api/posts?pageSize=4"),
+      api<Category[]>("/api/categories"),
+    ])
+      .then(([postPage, nextCategories]) => {
+        setPosts(postPage.items);
+        setTotalPosts(postPage.total);
+        setCategories(nextCategories);
+      })
       .catch((reason: Error) => setError(reason.message))
       .finally(() => setLoading(false));
   }, []);
 
   const featuredPost = posts[0];
-  const recentPosts = posts.slice(0, 4);
-  const categoryCounts = posts.reduce<Map<string, number>>((counts, post) => {
-    const category = post.category || "随笔";
-    counts.set(category, (counts.get(category) ?? 0) + 1);
-    return counts;
-  }, new Map());
-  const topics = Array.from(categoryCounts.entries()).slice(0, 5);
+  const recentPosts = posts;
+  const activeCategories = categories.filter((category) => category.postCount > 0);
+  const topics = activeCategories
+    .slice(0, 5)
+    .map((category) => [category.name, category.postCount] as const);
 
   return (
     <div className="home-page">
+      <Seo
+        title="OmniBlog — 写下值得留下的想法"
+        description="一份关于技术、生活与创造的独立写作，记录值得慢下来读完的经验、观察与故事。"
+        path="/"
+      />
       <section className="home-hero section" aria-labelledby="home-title">
         <div className="home-hero-topline" aria-hidden="true">
           <span>INDEPENDENT JOURNAL / VOL. 01</span>
@@ -101,11 +114,11 @@ export function HomePage() {
           </p>
           <dl className="home-hero-stats">
             <div>
-              <dt>{loading ? "—" : String(posts.length).padStart(2, "0")}</dt>
+              <dt>{loading ? "—" : String(totalPosts).padStart(2, "0")}</dt>
               <dd>已发布文章</dd>
             </div>
             <div>
-              <dt>{loading ? "—" : String(categoryCounts.size).padStart(2, "0")}</dt>
+              <dt>{loading ? "—" : String(activeCategories.length).padStart(2, "0")}</dt>
               <dd>持续话题</dd>
             </div>
             <div>
@@ -147,7 +160,7 @@ export function HomePage() {
         )}
         {featuredPost && (
           <article className="home-feature-card">
-            <Link to={`/posts/${featuredPost.slug}`} state={{ post: featuredPost }}>
+            <Link to={`/posts/${featuredPost.slug}`}>
               <div className="home-feature-copy">
                 <div className="home-feature-meta">
                   <span>{featuredPost.category || "随笔"}</span>
@@ -158,7 +171,7 @@ export function HomePage() {
                 <h3>{featuredPost.title}</h3>
                 <p>{featuredPost.excerpt}</p>
                 <div className="home-feature-byline">
-                  <span>{featuredPost.authorName} · {readingTime(featuredPost.content)}</span>
+                  <span>{featuredPost.authorName} · {formatReadingMinutes(featuredPost.readingMinutes)}</span>
                   <span>
                     阅读文章
                     <ArrowUpRight size={17} aria-hidden="true" />
@@ -192,7 +205,7 @@ export function HomePage() {
           <div className="home-latest-list">
             {recentPosts.map((post, index) => (
               <article className="home-latest-item" key={post.id}>
-                <Link to={`/posts/${post.slug}`} state={{ post }}>
+                <Link to={`/posts/${post.slug}`}>
                   <span className="home-latest-number">
                     {String(index + 1).padStart(2, "0")}
                   </span>
@@ -207,7 +220,7 @@ export function HomePage() {
                     <p>{post.excerpt}</p>
                   </div>
                   <div className="home-latest-end">
-                    <span>{readingTime(post.content)}</span>
+                    <span>{formatReadingMinutes(post.readingMinutes)}</span>
                     <ArrowUpRight size={19} aria-hidden="true" />
                   </div>
                 </Link>
@@ -233,6 +246,10 @@ export function HomePage() {
               OmniBlog 是一份持续生长的个人刊物。文字在这里不是即时反应，
               而是一次重新看见、重新理解的过程。
             </p>
+            <Link className="home-manifesto-link" to="/about">
+              关于这份刊物
+              <ArrowUpRight size={17} aria-hidden="true" />
+            </Link>
           </div>
           <div className="home-principles">
             {writingPrinciples.map((principle) => (

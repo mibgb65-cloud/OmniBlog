@@ -3,6 +3,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import type { RegistrationStatus } from "../../shared/types";
 import { Loading } from "../components/Loading";
+import { Seo } from "../components/Seo";
 import { api } from "../lib/api";
 import { useAuth } from "../lib/auth";
 
@@ -55,6 +56,12 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
   if (!isLogin && registration && (!registration.open || !registration.configured)) {
     return (
       <section className="auth-wrap section">
+        <Seo
+          title="站点初始化 — OmniBlog"
+          description="检查 OmniBlog 的站长账号初始化状态。"
+          path="/register"
+          noIndex
+        />
         <div className="auth-intro">
           <span className="section-index">OmniBlog</span>
           <h1>{registration.open ? "还差一项配置。" : "站点已经准备好了。"}</h1>
@@ -77,6 +84,12 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
 
   return (
     <section className="auth-wrap section">
+      <Seo
+        title={`${isLogin ? "站长登录" : "初始化站长"} — OmniBlog`}
+        description={isLogin ? "登录 OmniBlog 写作后台。" : "创建 OmniBlog 的唯一站长账号。"}
+        path={isLogin ? "/login" : "/register"}
+        noIndex
+      />
       <div className="auth-intro">
         <span className="section-index">{isLogin ? "欢迎回来" : "初始化 OmniBlog"}</span>
         <h1>{isLogin ? "继续写下去。" : "创建站长账号。"}</h1>

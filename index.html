@@ -9,15 +9,17 @@
       name="description"
       content="OmniBlog，一个克制、专注于文字的个人博客。"
     />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="OmniBlog" />
+    <meta property="og:title" content="OmniBlog — 写下值得留下的想法" />
+    <meta
+      property="og:description"
+      content="一份关于技术、生活与创造的独立写作。"
+    />
+    <meta name="twitter:card" content="summary" />
+    <link rel="alternate" type="application/rss+xml" title="OmniBlog RSS" href="/rss.xml" />
     <title>OmniBlog — 写下值得留下的想法</title>
-    <script>
-      (() => {
-        const saved = localStorage.getItem("monolog-theme");
-        const dark = saved === "dark" ||
-          (!saved && matchMedia("(prefers-color-scheme: dark)").matches);
-        document.documentElement.dataset.theme = dark ? "dark" : "light";
-      })();
-    </script>
+    <script src="/theme.js"></script>
   </head>
   <body>
     <div id="root"></div>

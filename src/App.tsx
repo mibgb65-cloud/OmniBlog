@@ -1,15 +1,43 @@
-import { useEffect, useLayoutEffect, useState, type AnimationEvent } from "react";
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useLayoutEffect,
+  useState,
+  type AnimationEvent,
+} from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { Loading } from "./components/Loading";
 import { useAuth } from "./lib/auth";
-import { AuthPage } from "./pages/AuthPage";
-import { ArticlesPage } from "./pages/ArticlesPage";
-import { DashboardPage } from "./pages/DashboardPage";
-import { EditorPage } from "./pages/EditorPage";
-import { HomePage } from "./pages/HomePage";
-import { NotFoundPage } from "./pages/NotFoundPage";
-import { PostPage } from "./pages/PostPage";
+
+const AboutPage = lazy(() => import("./pages/AboutPage").then((module) => ({
+  default: module.AboutPage,
+})));
+const AuthPage = lazy(() => import("./pages/AuthPage").then((module) => ({
+  default: module.AuthPage,
+})));
+const ArticlesPage = lazy(() => import("./pages/ArticlesPage").then((module) => ({
+  default: module.ArticlesPage,
+})));
+const DashboardPage = lazy(() => import("./pages/DashboardPage").then((module) => ({
+  default: module.DashboardPage,
+})));
+const EditorPage = lazy(() => import("./pages/EditorPage").then((module) => ({
+  default: module.EditorPage,
+})));
+const HomePage = lazy(() => import("./pages/HomePage").then((module) => ({
+  default: module.HomePage,
+})));
+const MediaPage = lazy(() => import("./pages/MediaPage").then((module) => ({
+  default: module.MediaPage,
+})));
+const NotFoundPage = lazy(() => import("./pages/NotFoundPage").then((module) => ({
+  default: module.NotFoundPage,
+})));
+const PostPage = lazy(() => import("./pages/PostPage").then((module) => ({
+  default: module.PostPage,
+})));
 
 function Protected({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -81,26 +109,33 @@ export function App() {
         onAnimationEnd={handleRouteAnimationEnd}
         key={displayLocation.pathname}
       >
-        <Routes location={displayLocation}>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/articles" element={<ArticlesPage />} />
-          <Route path="/posts/:slug" element={<PostPage />} />
-          <Route path="/login" element={<AuthPage mode="login" />} />
-          <Route path="/register" element={<AuthPage mode="register" />} />
-          <Route
-            path="/dashboard"
-            element={<Protected><DashboardPage /></Protected>}
-          />
-          <Route
-            path="/write"
-            element={<Protected><EditorPage /></Protected>}
-          />
-          <Route
-            path="/write/:id"
-            element={<Protected><EditorPage /></Protected>}
-          />
-          <Route path="*" element={<NotFoundPage />} />
-        </Routes>
+        <Suspense fallback={<Loading label="正在打开页面" />}>
+          <Routes location={displayLocation}>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/articles" element={<ArticlesPage />} />
+            <Route path="/posts/:slug" element={<PostPage />} />
+            <Route path="/login" element={<AuthPage mode="login" />} />
+            <Route path="/register" element={<AuthPage mode="register" />} />
+            <Route
+              path="/dashboard"
+              element={<Protected><DashboardPage /></Protected>}
+            />
+            <Route
+              path="/dashboard/media"
+              element={<Protected><MediaPage /></Protected>}
+            />
+            <Route
+              path="/write"
+              element={<Protected><EditorPage /></Protected>}
+            />
+            <Route
+              path="/write/:id"
+              element={<Protected><EditorPage /></Protected>}
+            />
+            <Route path="*" element={<NotFoundPage />} />
+          </Routes>
+        </Suspense>
       </div>
     </Layout>
   );

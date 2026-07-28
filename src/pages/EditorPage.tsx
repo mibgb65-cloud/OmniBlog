@@ -10,6 +10,7 @@ import {
   Send,
 } from "lucide-react";
 import {
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -18,7 +19,7 @@ import {
   type DragEvent,
   type FormEvent,
 } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useBlocker, useNavigate, useParams } from "react-router-dom";
 import type {
   Category,
   MediaUpload,
@@ -27,6 +28,7 @@ import type {
   PostVisibility,
 } from "../../shared/types";
 import { Loading } from "../components/Loading";
+import { Seo } from "../components/Seo";
 import { api } from "../lib/api";
 import { insertMarkdownImage, parseMarkdownImport } from "../lib/markdown";
 
@@ -60,6 +62,7 @@ export function EditorPage() {
   const markdownInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const contentInputRef = useRef<HTMLTextAreaElement>(null);
+  const allowNavigationRef = useRef(false);
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("随笔");
   const [categories, setCategories] = useState<Category[]>([]);
@@ -85,8 +88,21 @@ export function EditorPage() {
     category !== savedDraft.category ||
     content !== savedDraft.content ||
     visibility !== savedDraft.visibility;
+  const blocker = useBlocker(useCallback(
+    ({ currentLocation, nextLocation }) => (
+      !allowNavigationRef.current
+      && hasUnsavedChanges
+      && (
+        currentLocation.pathname !== nextLocation.pathname
+        || currentLocation.search !== nextLocation.search
+        || currentLocation.hash !== nextLocation.hash
+      )
+    ),
+    [hasUnsavedChanges],
+  ));
 
   useEffect(() => {
+    allowNavigationRef.current = false;
     const postRequest = id
       ? api<Post>(`/api/me/posts/${id}`)
       : Promise.resolve<Post | null>(null);
@@ -126,7 +142,13 @@ export function EditorPage() {
   }, [id]);
 
   useEffect(() => {
-    if (!hasUnsavedChanges) return;
+    if (blocker.state !== "blocked") return;
+    if (window.confirm("还有未保存的内容，确定离开吗？")) blocker.proceed();
+    else blocker.reset();
+  }, [blocker]);
+
+  useEffect(() => {
+    if (!hasUnsavedChanges || allowNavigationRef.current) return;
     const warnBeforeLeaving = (event: BeforeUnloadEvent) => {
       event.preventDefault();
       event.returnValue = "";
@@ -261,6 +283,7 @@ export function EditorPage() {
         body: JSON.stringify({ title, category, content, status, visibility }),
       });
       setSavedDraft({ title, category, content, visibility });
+      allowNavigationRef.current = true;
       navigate(status === "published" ? `/posts/${post.slug}` : "/dashboard");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "保存失败，请稍后再试。");
@@ -278,15 +301,16 @@ export function EditorPage() {
 
   return (
     <section className="editor section">
+      <Seo
+        title={`${id ? "编辑文章" : "写新文章"} — OmniBlog`}
+        description="在 OmniBlog 中编辑和发布文章。"
+        path={id ? `/write/${id}` : "/write"}
+        noIndex
+      />
       <div className="editor-top">
         <Link
           className="back-link"
           to="/dashboard"
-          onClick={(event) => {
-            if (hasUnsavedChanges && !window.confirm("还有未保存的内容，确定离开吗？")) {
-              event.preventDefault();
-            }
-          }}
         >
           <ArrowLeft size={17} aria-hidden="true" />
           返回文章列表

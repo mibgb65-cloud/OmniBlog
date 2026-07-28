@@ -1,15 +1,14 @@
 import { ArrowUpRight } from "lucide-react";
 import { Link } from "react-router-dom";
-import type { Post } from "../../shared/types";
-import { formatDate, readingTime } from "../lib/format";
+import type { PostSummary } from "../../shared/types";
+import { formatDate, formatReadingMinutes } from "../lib/format";
 
-export function PostCard({ post, featured = false }: { post: Post; featured?: boolean }) {
+export function PostCard({ post, featured = false }: { post: PostSummary; featured?: boolean }) {
   return (
     <article className={`post-card${featured ? " featured-card" : ""}`}>
       <Link
         className="post-card-link"
         to={`/posts/${post.slug}`}
-        state={{ post }}
         aria-label={`阅读《${post.title}》`}
       >
         <div className="post-card-top">
@@ -21,7 +20,7 @@ export function PostCard({ post, featured = false }: { post: Post; featured?: bo
           <p>{post.excerpt}</p>
         </div>
         <div className="post-card-bottom">
-          <span>{post.authorName} · {readingTime(post.content)}</span>
+          <span>{post.authorName} · {formatReadingMinutes(post.readingMinutes)}</span>
           <span className="read-more">
             阅读全文
             <ArrowUpRight size={17} aria-hidden="true" />

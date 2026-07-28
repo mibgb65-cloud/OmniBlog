@@ -1,10 +1,14 @@
 import { Hono, type Context, type MiddlewareHandler } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import type {
+  AdminPostSummary,
   Category,
+  MediaItem,
   MediaUpload,
+  PaginatedPosts,
   Post,
   PostInput,
+  PostSummary,
   PostStatus,
   PostVisibility,
   User,
@@ -59,6 +63,37 @@ type PostRow = {
   published_at: string | null;
 };
 
+type PostSummaryRow = {
+  id: string;
+  author_name: string;
+  title: string;
+  slug: string;
+  category: string;
+  excerpt: string;
+  like_count: number;
+  content_length: number;
+  published_at: string | null;
+};
+
+type FeedPostRow = {
+  title: string;
+  slug: string;
+  excerpt: string;
+  author_name: string;
+  published_at: string;
+};
+
+type AdminPostSummaryRow = {
+  id: string;
+  title: string;
+  slug: string;
+  category: string;
+  status: PostStatus;
+  visibility: PostVisibility;
+  updated_at: string;
+  published_at: string | null;
+};
+
 type CategoryRow = {
   id: string;
   name: string;
@@ -102,6 +137,29 @@ const toPost = (row: PostRow, likedByVisitor?: boolean): Post => ({
   publishedAt: row.published_at,
 });
 
+const toPostSummary = (row: PostSummaryRow): PostSummary => ({
+  id: row.id,
+  authorName: row.author_name,
+  title: row.title,
+  slug: row.slug,
+  category: row.category,
+  excerpt: row.excerpt,
+  likeCount: Number(row.like_count ?? 0),
+  readingMinutes: Math.max(1, Math.ceil(Number(row.content_length ?? 0) / 400)),
+  publishedAt: row.published_at,
+});
+
+const toAdminPostSummary = (row: AdminPostSummaryRow): AdminPostSummary => ({
+  id: row.id,
+  title: row.title,
+  slug: row.slug,
+  category: row.category,
+  status: row.status,
+  visibility: row.visibility,
+  updatedAt: row.updated_at,
+  publishedAt: row.published_at,
+});
+
 const toCategory = (row: CategoryRow): Category => ({
   id: row.id,
   name: row.name,
@@ -112,6 +170,25 @@ const toCategory = (row: CategoryRow): Category => ({
 
 function jsonError(c: Context<AppEnv>, message: string) {
   return c.json({ error: message }, 400);
+}
+
+function boundedInteger(value: string | undefined, fallback: number, maximum: number) {
+  const parsed = Number.parseInt(value ?? "", 10);
+  if (!Number.isFinite(parsed) || parsed < 1) return fallback;
+  return Math.min(parsed, maximum);
+}
+
+function xmlEscape(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&apos;");
+}
+
+function validMediaKey(key: string | undefined): key is string {
+  return Boolean(key && key.startsWith("images/") && !key.includes("..") && !key.includes("\\"));
 }
 
 async function readJson(c: Context<AppEnv>) {
@@ -522,15 +599,58 @@ app.get("/api/categories", async (c) => {
 });
 
 app.get("/api/posts", async (c) => {
-  const result = await c.env.DB.prepare(
-    `SELECT posts.*, users.name AS author_name
-     FROM posts
-     JOIN users ON users.id = posts.author_id
-     WHERE posts.status = 'published' AND posts.visibility = 'public'
-     ORDER BY posts.published_at DESC
-     LIMIT 50`,
-  ).all<PostRow>();
-  return c.json({ data: result.results.map((row) => toPost(row)) });
+  const page = boundedInteger(c.req.query("page"), 1, 10_000);
+  const pageSize = boundedInteger(c.req.query("pageSize"), 12, 24);
+  const query = (c.req.query("q") ?? "").trim().slice(0, 100);
+  const category = (c.req.query("category") ?? "").trim().slice(0, 24);
+  const sort = c.req.query("sort") ?? "newest";
+  const sortClause = sort === "oldest"
+    ? "posts.published_at ASC"
+    : sort === "popular"
+      ? "posts.like_count DESC, posts.published_at DESC"
+      : "posts.published_at DESC";
+  const conditions = ["posts.status = 'published'", "posts.visibility = 'public'"];
+  const bindings: string[] = [];
+
+  if (category) {
+    conditions.push("posts.category = ?");
+    bindings.push(category);
+  }
+  if (query) {
+    conditions.push("(posts.title LIKE ? OR posts.excerpt LIKE ? OR posts.content LIKE ?)");
+    const pattern = `%${query}%`;
+    bindings.push(pattern, pattern, pattern);
+  }
+
+  const whereClause = conditions.join(" AND ");
+  const offset = (page - 1) * pageSize;
+  const [countResult, postsResult] = await c.env.DB.batch([
+    c.env.DB.prepare(
+      `SELECT COUNT(*) AS total FROM posts WHERE ${whereClause}`,
+    ).bind(...bindings),
+    c.env.DB.prepare(
+      `SELECT posts.id, users.name AS author_name, posts.title, posts.slug,
+              posts.category, posts.excerpt, posts.like_count, posts.published_at,
+              length(
+                replace(replace(replace(replace(posts.content, ' ', ''), char(10), ''), char(13), ''), char(9), '')
+              ) AS content_length
+       FROM posts
+       JOIN users ON users.id = posts.author_id
+       WHERE ${whereClause}
+       ORDER BY ${sortClause}
+       LIMIT ? OFFSET ?`,
+    ).bind(...bindings, pageSize, offset),
+  ]);
+  const total = Number((countResult.results[0] as { total?: number } | undefined)?.total ?? 0);
+  const data: PaginatedPosts = {
+    items: (postsResult.results as unknown as PostSummaryRow[]).map(toPostSummary),
+    total,
+    page,
+    pageSize,
+    totalPages: Math.max(1, Math.ceil(total / pageSize)),
+  };
+  c.header("Cache-Control", "public, max-age=30, stale-while-revalidate=120");
+  return c.json({ data });
 });
 
 app.get("/api/posts/:slug", async (c) => {
@@ -690,6 +810,64 @@ app.post("/api/me/media", async (c) => {
   return c.json({ data: upload }, 201);
 });
 
+app.get("/api/me/media", async (c) => {
+  const cursor = c.req.query("cursor")?.trim();
+  const listed = await c.env.MEDIA.list({
+    prefix: "images/",
+    limit: 48,
+    ...(cursor ? { cursor } : {}),
+    include: ["httpMetadata", "customMetadata"],
+  });
+  const postResult = await c.env.DB.prepare(
+    "SELECT content FROM posts WHERE author_id = ?",
+  )
+    .bind(c.get("user").id)
+    .all<{ content: string }>();
+  const content = postResult.results.map((post) => post.content);
+  const items: MediaItem[] = listed.objects
+    .filter((object) => object.customMetadata?.authorId === c.get("user").id)
+    .map((object) => {
+      const url = `/media/${object.key}`;
+      return {
+        key: object.key,
+        url,
+        size: object.size,
+        contentType: object.httpMetadata?.contentType ?? "application/octet-stream",
+        uploadedAt: object.uploaded.toISOString(),
+        inUse: content.some((postContent) => postContent.includes(url)),
+      };
+    });
+  return c.json({
+    data: {
+      items,
+      cursor: listed.truncated ? listed.cursor : null,
+    },
+  });
+});
+
+app.delete("/api/me/media", async (c) => {
+  const key = c.req.query("key")?.trim();
+  if (!validMediaKey(key)) return jsonError(c, "图片地址无效。");
+
+  const object = await c.env.MEDIA.head(key);
+  if (!object || object.customMetadata?.authorId !== c.get("user").id) {
+    return c.json({ error: "没有找到这张图片。" }, 404);
+  }
+
+  const url = `/media/${key}`;
+  const referenced = await c.env.DB.prepare(
+    "SELECT id FROM posts WHERE author_id = ? AND instr(content, ?) > 0 LIMIT 1",
+  )
+    .bind(c.get("user").id, url)
+    .first();
+  if (referenced) {
+    return c.json({ error: "这张图片仍被文章使用，请先从正文中移除。" }, 409);
+  }
+
+  await c.env.MEDIA.delete(key);
+  return c.json({ data: true });
+});
+
 app.get("/api/me/categories", async (c) => {
   await ensureCategories(c.env.DB);
   const result = await c.env.DB.prepare(
@@ -793,15 +971,14 @@ app.delete("/api/me/categories/:id", async (c) => {
 
 app.get("/api/me/posts", async (c) => {
   const result = await c.env.DB.prepare(
-    `SELECT posts.*, users.name AS author_name
+    `SELECT id, title, slug, category, status, visibility, updated_at, published_at
      FROM posts
-     JOIN users ON users.id = posts.author_id
      WHERE posts.author_id = ?
      ORDER BY posts.updated_at DESC`,
   )
     .bind(c.get("user").id)
-    .all<PostRow>();
-  return c.json({ data: result.results.map((row) => toPost(row)) });
+    .all<AdminPostSummaryRow>();
+  return c.json({ data: result.results.map(toAdminPostSummary) });
 });
 
 app.get("/api/me/posts/:id", async (c) => {
@@ -936,6 +1113,75 @@ app.delete("/api/me/posts/:id", async (c) => {
     .run();
   if (!result.meta.changes) return c.json({ error: "没有找到这篇文章。" }, 404);
   return c.json({ data: true });
+});
+
+app.get("/robots.txt", (c) => {
+  const origin = new URL(c.req.url).origin;
+  return c.text(
+    `User-agent: *\nAllow: /\nSitemap: ${origin}/sitemap.xml\n`,
+    200,
+    { "Content-Type": "text/plain; charset=utf-8" },
+  );
+});
+
+app.get("/sitemap.xml", async (c) => {
+  const origin = new URL(c.req.url).origin;
+  const result = await c.env.DB.prepare(
+    `SELECT slug, updated_at
+     FROM posts
+     WHERE status = 'published' AND visibility = 'public'
+     ORDER BY published_at DESC`,
+  ).all<{ slug: string; updated_at: string }>();
+  const staticUrls = ["/", "/articles", "/about"];
+  const urls = [
+    ...staticUrls.map((path) => `<url><loc>${xmlEscape(`${origin}${path}`)}</loc></url>`),
+    ...result.results.map((post) => (
+      `<url><loc>${xmlEscape(`${origin}/posts/${post.slug}`)}</loc>`
+      + `<lastmod>${xmlEscape(post.updated_at.slice(0, 10))}</lastmod></url>`
+    )),
+  ].join("");
+  return c.body(
+    `<?xml version="1.0" encoding="UTF-8"?>`
+      + `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls}</urlset>`,
+    200,
+    {
+      "Cache-Control": "public, max-age=300",
+      "Content-Type": "application/xml; charset=utf-8",
+    },
+  );
+});
+
+app.get("/rss.xml", async (c) => {
+  const origin = new URL(c.req.url).origin;
+  const result = await c.env.DB.prepare(
+    `SELECT posts.title, posts.slug, posts.excerpt, users.name AS author_name,
+            posts.published_at
+     FROM posts
+     JOIN users ON users.id = posts.author_id
+     WHERE posts.status = 'published' AND posts.visibility = 'public'
+     ORDER BY posts.published_at DESC
+     LIMIT 20`,
+  ).all<FeedPostRow>();
+  const items = result.results.map((post) => {
+    const url = `${origin}/posts/${post.slug}`;
+    return `<item><title>${xmlEscape(post.title)}</title>`
+      + `<link>${xmlEscape(url)}</link><guid>${xmlEscape(url)}</guid>`
+      + `<description>${xmlEscape(post.excerpt)}</description>`
+      + `<dc:creator>${xmlEscape(post.author_name)}</dc:creator>`
+      + `<pubDate>${new Date(post.published_at).toUTCString()}</pubDate></item>`;
+  }).join("");
+  return c.body(
+    `<?xml version="1.0" encoding="UTF-8"?>`
+      + `<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/">`
+      + `<channel><title>OmniBlog</title>`
+      + `<link>${xmlEscape(origin)}</link>`
+      + `<description>写下值得留下的想法</description>${items}</channel></rss>`,
+    200,
+    {
+      "Cache-Control": "public, max-age=300",
+      "Content-Type": "application/rss+xml; charset=utf-8",
+    },
+  );
 });
 
 app.notFound((c) => c.json({ error: "接口不存在。" }, 404));

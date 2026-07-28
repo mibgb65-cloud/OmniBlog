@@ -6,7 +6,7 @@ import categoryMigration from "../migrations/0004_add_post_categories.sql?raw";
 import categoriesMigration from "../migrations/0005_create_categories.sql?raw";
 import visibilityMigration from "../migrations/0006_add_post_visibility.sql?raw";
 import likesMigration from "../migrations/0007_add_post_likes.sql?raw";
-import type { Category, Post } from "../shared/types";
+import type { Category, MediaPage, PaginatedPosts, Post } from "../shared/types";
 import app, { type Bindings } from "./index";
 import {
   createSessionToken,
@@ -293,8 +293,10 @@ describe("post authorization and lifecycle", () => {
     const unlistedPost = await createPost("Unlisted article", "unlisted");
     const privatePost = await createPost("Private article", "private");
 
-    const list = (await (await request("/api/posts")).json()) as { data: Post[] };
-    expect(list.data.map((post) => post.id)).toEqual([publicPost.id]);
+    const list = (await (await request("/api/posts")).json()) as {
+      data: PaginatedPosts;
+    };
+    expect(list.data.items.map((post) => post.id)).toEqual([publicPost.id]);
 
     const categories = (await (await request("/api/categories")).json()) as {
       data: Category[];
@@ -332,6 +334,48 @@ describe("post authorization and lifecycle", () => {
     expect(updated.status).toBe(200);
     expect(((await updated.json()) as { data: Post }).data.visibility).toBe("unlisted");
     expect((await request(`/api/posts/${privatePost.slug}`)).status).toBe(200);
+  });
+
+  it("paginates lightweight public summaries and supports search, category, and sort", async () => {
+    await seedUser("owner", "Owner", "owner@example.com", "owner password");
+    const ownerCookie = await sessionCookie("owner");
+    const createPost = async (title: string, category: string) => {
+      const response = await request("/api/me/posts", {
+        method: "POST",
+        headers: { ...JSON_HEADERS, Cookie: ownerCookie },
+        body: JSON.stringify({
+          title,
+          category,
+          content: `${title} includes enough searchable content for this public article.`,
+          status: "published",
+          visibility: "public",
+        }),
+      });
+      return ((await response.json()) as { data: Post }).data;
+    };
+    const alpha = await createPost("Alpha field notes", "技术");
+    const beta = await createPost("Beta reading list", "生活");
+
+    const firstPage = (await (await request("/api/posts?pageSize=1")).json()) as {
+      data: PaginatedPosts;
+    };
+    expect(firstPage.data).toMatchObject({ total: 2, page: 1, pageSize: 1, totalPages: 2 });
+    expect(firstPage.data.items).toHaveLength(1);
+    expect(firstPage.data.items[0]).not.toHaveProperty("content");
+    expect(firstPage.data.items[0].readingMinutes).toBeGreaterThanOrEqual(1);
+
+    const filtered = (await (await request(
+      "/api/posts?q=Beta&category=%E7%94%9F%E6%B4%BB",
+    )).json()) as { data: PaginatedPosts };
+    expect(filtered.data.items.map((post) => post.id)).toEqual([beta.id]);
+
+    await database.prepare("UPDATE posts SET like_count = 5 WHERE id = ?")
+      .bind(alpha.id)
+      .run();
+    const popular = (await (await request("/api/posts?sort=popular&pageSize=1")).json()) as {
+      data: PaginatedPosts;
+    };
+    expect(popular.data.items[0].id).toBe(alpha.id);
   });
 });
 
@@ -429,6 +473,24 @@ describe("media uploads", () => {
     });
     expect(payload.data.key).toMatch(/^images\/\d{4}\/\d{2}\/[\w-]+\.png$/);
 
+    const library = (await (await request("/api/me/media", {
+      headers: { Cookie: ownerCookie },
+    })).json()) as { data: MediaPage };
+    expect(library.data.items).toEqual([
+      expect.objectContaining({ key: payload.data.key, inUse: false }),
+    ]);
+
+    await seedUser("other", "Other", "other@example.com", "other password");
+    const otherCookie = await sessionCookie("other");
+    const otherLibrary = (await (await request("/api/me/media", {
+      headers: { Cookie: otherCookie },
+    })).json()) as { data: MediaPage };
+    expect(otherLibrary.data.items).toEqual([]);
+    expect((await request(`/api/me/media?key=${encodeURIComponent(payload.data.key)}`, {
+      method: "DELETE",
+      headers: { Cookie: otherCookie },
+    })).status).toBe(404);
+
     const image = await request(payload.data.url);
     expect(image.status).toBe(200);
     expect(image.headers.get("content-type")).toBe("image/png");
@@ -436,6 +498,53 @@ describe("media uploads", () => {
     expect(image.headers.get("cache-control")).toBe("public, max-age=31536000, immutable");
     expect(image.headers.get("x-content-type-options")).toBe("nosniff");
     expect(new Uint8Array(await image.arrayBuffer())).toEqual(png);
+
+    const removed = await request(
+      `/api/me/media?key=${encodeURIComponent(payload.data.key)}`,
+      { method: "DELETE", headers: { Cookie: ownerCookie } },
+    );
+    expect(removed.status).toBe(200);
+    expect((await request(payload.data.url)).status).toBe(404);
+  });
+
+  it("marks images referenced by an article and prevents deleting them", async () => {
+    await seedUser("owner", "Owner", "owner@example.com", "owner password");
+    const ownerCookie = await sessionCookie("owner");
+    const png = new Uint8Array([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+      0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
+    ]);
+    const formData = new FormData();
+    formData.set("file", new File([png], "used.png", { type: "image/png" }));
+    const uploaded = await request("/api/me/media", {
+      method: "POST",
+      headers: { Cookie: ownerCookie },
+      body: formData,
+    });
+    const media = ((await uploaded.json()) as {
+      data: { key: string; url: string };
+    }).data;
+
+    await request("/api/me/posts", {
+      method: "POST",
+      headers: { ...JSON_HEADERS, Cookie: ownerCookie },
+      body: JSON.stringify({
+        title: "Article with an image",
+        category: "随笔",
+        content: `This article references an uploaded image.\n\n![example](${media.url})`,
+        status: "draft",
+        visibility: "public",
+      }),
+    });
+
+    const library = (await (await request("/api/me/media", {
+      headers: { Cookie: ownerCookie },
+    })).json()) as { data: MediaPage };
+    expect(library.data.items[0]).toMatchObject({ key: media.key, inUse: true });
+    expect((await request(`/api/me/media?key=${encodeURIComponent(media.key)}`, {
+      method: "DELETE",
+      headers: { Cookie: ownerCookie },
+    })).status).toBe(409);
   });
 
   it("requires authentication and rejects files whose bytes are not a supported image", async () => {
@@ -465,6 +574,39 @@ describe("media uploads", () => {
     expect(await invalid.json()).toEqual({
       error: "仅支持 JPEG、PNG、WebP、GIF 或 AVIF 图片。",
     });
+  });
+});
+
+describe("discovery endpoints", () => {
+  it("publishes robots, sitemap, and RSS documents for public posts", async () => {
+    await seedUser("owner", "Owner", "owner@example.com", "owner password");
+    const ownerCookie = await sessionCookie("owner");
+    const created = await request("/api/me/posts", {
+      method: "POST",
+      headers: { ...JSON_HEADERS, Cookie: ownerCookie },
+      body: JSON.stringify({
+        title: "Signals & systems",
+        category: "技术",
+        content: "A public article should appear in discovery documents.",
+        status: "published",
+        visibility: "public",
+      }),
+    });
+    const post = ((await created.json()) as { data: Post }).data;
+
+    const robots = await request("/robots.txt");
+    expect(robots.headers.get("content-type")).toContain("text/plain");
+    expect(await robots.text()).toContain("http://monolog.test/sitemap.xml");
+
+    const sitemap = await request("/sitemap.xml");
+    expect(sitemap.headers.get("content-type")).toContain("application/xml");
+    expect(await sitemap.text()).toContain(`/posts/${post.slug}`);
+
+    const rss = await request("/rss.xml");
+    expect(rss.headers.get("content-type")).toContain("application/rss+xml");
+    const rssBody = await rss.text();
+    expect(rssBody).toContain("Signals &amp; systems");
+    expect(rssBody).toContain(`/posts/${post.slug}`);
   });
 });
 

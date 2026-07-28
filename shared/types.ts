@@ -26,6 +26,37 @@ export type Post = {
   publishedAt: string | null;
 };
 
+export type PostSummary = {
+  id: string;
+  authorName: string;
+  title: string;
+  slug: string;
+  category: string;
+  excerpt: string;
+  likeCount: number;
+  readingMinutes: number;
+  publishedAt: string | null;
+};
+
+export type PaginatedPosts = {
+  items: PostSummary[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+};
+
+export type AdminPostSummary = {
+  id: string;
+  title: string;
+  slug: string;
+  category: string;
+  status: PostStatus;
+  visibility: PostVisibility;
+  updatedAt: string;
+  publishedAt: string | null;
+};
+
 export type PostInput = {
   title: string;
   category: string;
@@ -52,4 +83,14 @@ export type MediaUpload = {
   key: string;
   size: number;
   url: string;
+};
+
+export type MediaItem = MediaUpload & {
+  uploadedAt: string;
+  inUse: boolean;
+};
+
+export type MediaPage = {
+  items: MediaItem[];
+  cursor: string | null;
 };

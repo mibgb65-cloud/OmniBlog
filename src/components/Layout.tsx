@@ -105,6 +105,7 @@ export function Layout({ children }: { children: ReactNode }) {
         <nav className="nav-links" aria-label="主导航">
           <NavLink to="/" end>首页</NavLink>
           <NavLink to="/articles">文章</NavLink>
+          <NavLink className="nav-about" to="/about">关于</NavLink>
           {user && <NavLink to="/dashboard">我的文章</NavLink>}
         </nav>
 
@@ -146,7 +147,11 @@ export function Layout({ children }: { children: ReactNode }) {
           <span>OmniBlog</span>
         </Link>
         <p>留一点安静，写一些值得留下的东西。</p>
-        <p>独立写作 · 保持简单</p>
+        <nav className="footer-links" aria-label="页脚导航">
+          <Link to="/about">关于</Link>
+          <Link to="/articles">归档</Link>
+          <a href="/rss.xml">RSS</a>
+        </nav>
       </footer>
     </div>
   );
