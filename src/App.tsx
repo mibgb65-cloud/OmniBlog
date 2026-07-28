@@ -1,10 +1,7 @@
 import {
   lazy,
   Suspense,
-  useEffect,
   useLayoutEffect,
-  useState,
-  type AnimationEvent,
 } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { Layout } from "./components/Layout";
@@ -48,69 +45,21 @@ function Protected({ children }: { children: React.ReactNode }) {
   return children;
 }
 
-type RoutePhase = "entering" | "idle" | "leaving";
-
 export function App() {
   const location = useLocation();
-  const [displayLocation, setDisplayLocation] = useState(location);
-  const [routePhase, setRoutePhase] = useState<RoutePhase>("entering");
-  const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-  useEffect(() => {
-    const samePath = location.pathname === displayLocation.pathname;
-
-    if (samePath) {
-      if (
-        location.key !== displayLocation.key ||
-        location.search !== displayLocation.search ||
-        location.hash !== displayLocation.hash
-      ) {
-        setDisplayLocation(location);
-      }
-      if (routePhase === "leaving") {
-        setRoutePhase(prefersReducedMotion ? "idle" : "entering");
-      }
-      return;
-    }
-
-    if (prefersReducedMotion) {
-      setDisplayLocation(location);
-      setRoutePhase("idle");
-      return;
-    }
-
-    if (routePhase !== "leaving") {
-      setRoutePhase("leaving");
-    }
-  }, [displayLocation, location, prefersReducedMotion, routePhase]);
 
   useLayoutEffect(() => {
     window.scrollTo(0, 0);
-  }, [displayLocation.pathname]);
-
-  const handleRouteAnimationEnd = (event: AnimationEvent<HTMLDivElement>) => {
-    if (event.target !== event.currentTarget) return;
-
-    if (routePhase === "leaving") {
-      setDisplayLocation(location);
-      setRoutePhase("entering");
-      return;
-    }
-
-    if (routePhase === "entering") {
-      setRoutePhase("idle");
-    }
-  };
+  }, [location.pathname]);
 
   return (
     <Layout>
       <div
-        className={`route-transition route-${routePhase}`}
-        onAnimationEnd={handleRouteAnimationEnd}
-        key={displayLocation.pathname}
+        className="route-transition"
+        key={location.pathname}
       >
         <Suspense fallback={<Loading label="正在打开页面" />}>
-          <Routes location={displayLocation}>
+          <Routes location={location}>
             <Route path="/" element={<HomePage />} />
             <Route path="/about" element={<AboutPage />} />
             <Route path="/articles" element={<ArticlesPage />} />

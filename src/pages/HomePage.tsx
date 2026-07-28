@@ -33,7 +33,7 @@ export function HomePage() {
 
   useEffect(() => {
     Promise.all([
-      api<PaginatedPosts>("/api/posts?pageSize=4"),
+      api<PaginatedPosts>("/api/posts?pageSize=5"),
       api<Category[]>("/api/categories"),
     ])
       .then(([postPage, nextCategories]) => {
@@ -46,7 +46,7 @@ export function HomePage() {
   }, []);
 
   const featuredPost = posts[0];
-  const recentPosts = posts;
+  const recentPosts = posts.slice(1, 5);
   const activeCategories = categories.filter((category) => category.postCount > 0);
   const topics = activeCategories
     .slice(0, 5)

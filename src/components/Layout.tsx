@@ -1,4 +1,4 @@
-import { Moon, PenLine, Sun } from "lucide-react";
+import { LogIn, Moon, PenLine, Sun } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth";
@@ -13,40 +13,13 @@ export function Layout({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>(
     document.documentElement.dataset.theme === "dark" ? "dark" : "light",
   );
-  const [showIntro, setShowIntro] = useState(() => {
-    if (!isHome || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      return false;
-    }
-    try {
-      return sessionStorage.getItem("monolog-intro-seen") !== "true";
-    } catch {
-      return true;
-    }
-  });
-
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     localStorage.setItem("monolog-theme", theme);
     document
       .querySelector('meta[name="theme-color"]')
-      ?.setAttribute("content", theme === "dark" ? "#0c0c0b" : "#f6f4ef");
+      ?.setAttribute("content", theme === "dark" ? "#0b0b0c" : "#f5f5f7");
   }, [theme]);
-
-  useEffect(() => {
-    if (!showIntro) return;
-    try {
-      sessionStorage.setItem("monolog-intro-seen", "true");
-    } catch {
-      // The animation can still play when session storage is unavailable.
-    }
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const timer = window.setTimeout(() => setShowIntro(false), 3250);
-    return () => {
-      window.clearTimeout(timer);
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [showIntro]);
 
   const handleLogout = async () => {
     await logout();
@@ -54,45 +27,7 @@ export function Layout({ children }: { children: ReactNode }) {
   };
 
   return (
-    <div
-      className={`site-shell${isHome ? " home-route" : ""}${
-        showIntro ? " intro-active" : " intro-complete"
-      }`}
-    >
-      {showIntro && (
-        <div className="intro-screen">
-          <div className="intro-canvas" aria-hidden="true">
-            <div className="intro-grid">
-              <span /><span /><span /><span />
-            </div>
-            <div className="intro-meta">
-              <span>OB / 001</span>
-              <span>INDEPENDENT JOURNAL</span>
-            </div>
-            <div className="intro-symbol">
-              <span className="intro-symbol-ring intro-symbol-ring-outer" />
-              <span className="intro-symbol-ring intro-symbol-ring-inner" />
-              <span className="intro-symbol-dot" />
-              <strong>O</strong>
-            </div>
-            <div className="intro-wordmark" aria-label="OmniBlog">
-              <span><i>OMNI</i></span>
-              <span><i>BLOG</i></span>
-            </div>
-            <p className="intro-statement">写下值得留下的想法</p>
-            <div className="intro-progress">
-              <span />
-            </div>
-            <div className="intro-count">
-              <span className="intro-count-current" />
-              <span>100</span>
-            </div>
-          </div>
-          <button className="intro-skip" type="button" onClick={() => setShowIntro(false)}>
-            跳过开场
-          </button>
-        </div>
-      )}
+    <div className={`site-shell${isHome ? " home-route" : ""}`}>
       <a className="skip-link" href="#main-content">
         跳到正文
       </a>
@@ -132,7 +67,7 @@ export function Layout({ children }: { children: ReactNode }) {
             </>
           ) : (
             <Link className="button button-primary compact" to="/login">
-              <PenLine size={16} className="mobile-only-icon" aria-hidden="true" />
+              <LogIn size={16} className="mobile-only-icon" aria-hidden="true" />
               <span>站长登录</span>
             </Link>
           )}
