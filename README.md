@@ -114,7 +114,9 @@ public/images/articles/<文章 slug>/
 
 ## 添加分类
 
-在 `content/categories.json` 中增加一项：
+在写作台的“发布设置 → 管理分类”中，可以添加中英文分类并删除未被文章或草稿使用的分类。分类与草稿一起保存在当前浏览器；“下载完整发布包”会同时生成最新的 `content/categories.json`。
+
+也可以直接在 `content/categories.json` 中增加一项：
 
 ```json
 {
@@ -127,7 +129,7 @@ public/images/articles/<文章 slug>/
 }
 ```
 
-然后在文章 Front Matter 中设置 `category: photography`。分类会自动进入筛选导航和中英文分类路由。
+然后在文章 Front Matter 中设置 `category: photography`。分类会自动进入筛选导航和中英文分类路由。若在写作台新增了分类，请使用完整发布包，或手动同步其中的 `content/categories.json`；仅下载 Markdown 不会更新分类配置。
 
 ## 站点与 SEO 配置
 

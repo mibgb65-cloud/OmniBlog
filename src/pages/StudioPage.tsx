@@ -15,16 +15,19 @@ import {
   Moon,
   Package,
   PenLine,
+  Plus,
   Smile,
   Sun,
+  Tags,
   Trash2,
   UploadCloud,
 } from "lucide-react";
 import { strFromU8, strToU8, unzip, zip } from "fflate";
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ClipboardEvent, type DragEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ClipboardEvent, type DragEvent, type FormEvent } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { categories } from "../categories";
+import { categories as defaultCategories, type Category } from "../categories";
+import { stories } from "../articles";
 import { TransitionLink, useTheme } from "../components/AppProviders";
 import type { Locale } from "../content";
 import {
@@ -62,6 +65,15 @@ type StudioDraft = {
 type StudioState = {
   drafts: StudioDraft[];
   activeId: string;
+  categories: Category[];
+};
+
+type CategoryForm = {
+  id: string;
+  nameZh: string;
+  nameEn: string;
+  descriptionZh: string;
+  descriptionEn: string;
 };
 
 type ImageAsset = {
@@ -100,14 +112,29 @@ const emojis = [
 ] as const;
 
 const storageKey = "omniblog-studio-drafts-v1";
+const emptyCategoryForm: CategoryForm = {
+  id: "",
+  nameZh: "",
+  nameEn: "",
+  descriptionZh: "",
+  descriptionEn: "",
+};
 
-function createDraft(): StudioDraft {
+function copyDefaultCategories(): Category[] {
+  return defaultCategories.map((category) => ({
+    ...category,
+    name: { ...category.name },
+    description: { ...category.description },
+  }));
+}
+
+function createDraft(category = defaultCategories[0]?.id ?? "notes"): StudioDraft {
   const id = crypto.randomUUID();
   return {
     id,
     slug: "",
     date: new Date().toISOString().slice(0, 10),
-    category: categories[0]?.id ?? "notes",
+    category,
     readMinutes: 6,
     cover: "",
     title: { zh: "", en: "" },
@@ -122,13 +149,13 @@ function createDraft(): StudioDraft {
 
 function loadStudioState(): StudioState {
   try {
-    const saved = JSON.parse(localStorage.getItem(storageKey) ?? "null") as StudioState | null;
-    if (saved?.drafts.length && saved.activeId) return saved;
+    const saved = normalizeStudioState(JSON.parse(localStorage.getItem(storageKey) ?? "null"));
+    if (saved) return saved;
   } catch {
     // Start with a clean draft if local data is malformed.
   }
   const draft = createDraft();
-  return { drafts: [draft], activeId: draft.id };
+  return { drafts: [draft], activeId: draft.id, categories: copyDefaultCategories() };
 }
 
 function splitTags(value: string) {
@@ -213,12 +240,19 @@ function isLocalizedDraft(value: unknown): value is LocalizedDraft {
   return typeof localized.zh === "string" && typeof localized.en === "string";
 }
 
-function isStudioState(value: unknown): value is StudioState {
+function isCategory(value: unknown): value is Category {
   if (!value || typeof value !== "object") return false;
-  const state = value as Partial<StudioState>;
-  if (!Array.isArray(state.drafts) || !state.drafts.length || typeof state.activeId !== "string") return false;
-  return state.drafts.some((draft) => draft.id === state.activeId) && state.drafts.every((draft) =>
-    typeof draft.id === "string"
+  const category = value as Partial<Category>;
+  return typeof category.id === "string"
+    && /^[a-z0-9-]+$/.test(category.id)
+    && isLocalizedDraft(category.name)
+    && isLocalizedDraft(category.description);
+}
+
+function isStudioDraft(value: unknown): value is StudioDraft {
+  if (!value || typeof value !== "object") return false;
+  const draft = value as Partial<StudioDraft>;
+  return typeof draft.id === "string"
     && typeof draft.slug === "string"
     && typeof draft.date === "string"
     && typeof draft.category === "string"
@@ -230,8 +264,22 @@ function isStudioState(value: unknown): value is StudioState {
     && isLocalizedDraft(draft.coverAlt)
     && isLocalizedDraft(draft.body)
     && isLocalizedDraft(draft.tags)
-    && isLocalizedDraft(draft.series),
-  );
+    && isLocalizedDraft(draft.series);
+}
+
+function normalizeStudioState(value: unknown): StudioState | null {
+  if (!value || typeof value !== "object") return null;
+  const state = value as { drafts?: unknown; activeId?: unknown; categories?: unknown };
+  if (!Array.isArray(state.drafts) || !state.drafts.length || !state.drafts.every(isStudioDraft) || typeof state.activeId !== "string") return null;
+  if (!state.drafts.some((draft) => draft.id === state.activeId)) return null;
+
+  const managedCategories = Array.isArray(state.categories) && state.categories.length && state.categories.every(isCategory)
+    ? state.categories.map((category) => ({ ...category, name: { ...category.name }, description: { ...category.description } }))
+    : copyDefaultCategories();
+  if (new Set(managedCategories.map((category) => category.id)).size !== managedCategories.length) return null;
+  if (state.drafts.some((draft) => !managedCategories.some((category) => category.id === draft.category))) return null;
+
+  return { drafts: state.drafts, activeId: state.activeId, categories: managedCategories };
 }
 
 async function createPublishPackage(
@@ -239,6 +287,7 @@ async function createPublishPackage(
   locales: Locale[],
   coverAssets: ImageAsset[],
   bodyAssets: BodyImageAsset[],
+  managedCategories: Category[],
 ) {
   const files: Record<string, Uint8Array> = {};
   locales.forEach((locale) => {
@@ -247,6 +296,7 @@ async function createPublishPackage(
   for (const asset of [...coverAssets, ...bodyAssets]) {
     files[`public/images/articles/${draft.slug}/${asset.filename}`] = new Uint8Array(await asset.blob.arrayBuffer());
   }
+  files["content/categories.json"] = strToU8(`${JSON.stringify(managedCategories, null, 2)}\n`);
   files["发布说明.txt"] = strToU8([
     `文章：${draft.title.zh || draft.title.en}`,
     "",
@@ -285,7 +335,8 @@ async function parseWorkspaceBackup(file: File) {
   const files = await unzipFiles(new Uint8Array(await file.arrayBuffer()));
   if (!files["workspace.json"]) throw new Error("备份缺少 workspace.json。 ");
   const manifest = JSON.parse(strFromU8(files["workspace.json"])) as StudioBackupManifest;
-  if (manifest.version !== 1 || !isStudioState(manifest.state) || !Array.isArray(manifest.assets)) {
+  const normalizedState = normalizeStudioState(manifest.state);
+  if (manifest.version !== 1 || !normalizedState || !Array.isArray(manifest.assets)) {
     throw new Error("备份格式无效。 ");
   }
   const assets: StoredDraftAssets[] = manifest.assets.map((record) => ({
@@ -301,7 +352,7 @@ async function parseWorkspaceBackup(file: File) {
       return { filename: asset.filename, width: asset.width, height: asset.height, alt: asset.alt, blob: imageBlob(bytes) };
     }),
   }));
-  return { state: manifest.state, assets };
+  return { state: normalizedState, assets };
 }
 
 async function resizeImage(file: File, width: number, height?: number): Promise<ImageAsset> {
@@ -355,6 +406,8 @@ export function StudioPage() {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("loading");
   const [packageStatus, setPackageStatus] = useState<"idle" | "packing" | "backup" | "restoring">("idle");
   const [assetReloadVersion, setAssetReloadVersion] = useState(0);
+  const [categoryForm, setCategoryForm] = useState<CategoryForm>(emptyCategoryForm);
+  const [categoryStatus, setCategoryStatus] = useState("");
   const bodyEditorRef = useRef<HTMLTextAreaElement>(null);
   const bodyImageInputRef = useRef<HTMLInputElement>(null);
   const bodyAssetsRef = useRef<BodyImageAsset[]>([]);
@@ -371,6 +424,10 @@ export function StudioPage() {
   ), [draft]);
   const canPackage = completedLocales.length > 0;
   const imageBase = draft.cover.startsWith("/media/") ? "/media" : "/images";
+  const categoryUsage = useMemo(() => new Map(state.categories.map((category) => [category.id, {
+    published: stories.filter((story) => story.categoryId === category.id).length,
+    drafts: state.drafts.filter((item) => item.category === category.id).length,
+  }])), [state.categories, state.drafts]);
 
   bodyAssetsRef.current = bodyAssets;
 
@@ -394,8 +451,8 @@ export function StudioPage() {
     let cancelled = false;
     void (async () => {
       try {
-        const stored = await readStudioState<StudioState>();
-        const nextState = isStudioState(stored) ? stored : initialStateRef.current;
+        const stored = await readStudioState<unknown>();
+        const nextState = normalizeStudioState(stored) ?? initialStateRef.current;
         if (!stored) await writeStudioState(nextState);
         if (cancelled) return;
         setState(nextState);
@@ -488,8 +545,10 @@ export function StudioPage() {
   };
 
   const addDraft = () => {
-    const next = createDraft();
-    setState((current) => ({ drafts: [next, ...current.drafts], activeId: next.id }));
+    setState((current) => {
+      const next = createDraft(current.categories[0]?.id);
+      return { ...current, drafts: [next, ...current.drafts], activeId: next.id };
+    });
   };
 
   const deleteDraft = () => {
@@ -497,10 +556,44 @@ export function StudioPage() {
     const deletedDraftId = draft.id;
     setState((current) => {
       const remaining = current.drafts.filter((item) => item.id !== current.activeId);
-      const nextDrafts = remaining.length ? remaining : [createDraft()];
-      return { drafts: nextDrafts, activeId: nextDrafts[0].id };
+      const nextDrafts = remaining.length ? remaining : [createDraft(current.categories[0]?.id)];
+      return { ...current, drafts: nextDrafts, activeId: nextDrafts[0].id };
     });
     if (storageReady) void persistOperation(deleteStudioAssets(deletedDraftId));
+  };
+
+  const addCategory = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const id = categoryForm.id.trim().toLocaleLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/^-+|-+$/g, "");
+    const nameZh = categoryForm.nameZh.trim();
+    const nameEn = categoryForm.nameEn.trim();
+    if (!id || !nameZh || !nameEn) {
+      setCategoryStatus("请填写分类标识、中英文名称。 ");
+      return;
+    }
+    if (state.categories.some((category) => category.id === id)) {
+      setCategoryStatus("这个分类标识已经存在，请换一个。 ");
+      return;
+    }
+    const nextCategory: Category = {
+      id,
+      name: { zh: nameZh, en: nameEn },
+      description: {
+        zh: categoryForm.descriptionZh.trim() || `${nameZh}分类文章。`,
+        en: categoryForm.descriptionEn.trim() || `${nameEn} stories.`,
+      },
+    };
+    setState((current) => ({ ...current, categories: [...current.categories, nextCategory] }));
+    setCategoryForm(emptyCategoryForm);
+    setCategoryStatus(`已添加“${nameZh}”，可在上方选择。`);
+  };
+
+  const deleteCategory = (category: Category) => {
+    const usage = categoryUsage.get(category.id);
+    if ((usage?.published ?? 0) + (usage?.drafts ?? 0) > 0 || state.categories.length === 1) return;
+    if (!window.confirm(`确定删除“${category.name.zh}”分类吗？`)) return;
+    setState((current) => ({ ...current, categories: current.categories.filter((item) => item.id !== category.id) }));
+    setCategoryStatus(`已删除“${category.name.zh}”。`);
   };
 
   const processCover = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -669,7 +762,7 @@ export function StudioPage() {
     setPackageStatus("packing");
     setAssetStatus("正在生成发布包…");
     try {
-      const archive = await createPublishPackage(draft, completedLocales, coverAssets, bodyAssets);
+      const archive = await createPublishPackage(draft, completedLocales, coverAssets, bodyAssets, state.categories);
       downloadBlob(archive, `${draft.slug}-publish.zip`);
       setAssetStatus(`发布包已生成：${completedLocales.map((item) => item === "zh" ? "中文" : "English").join(" + ")}。`);
     } catch {
@@ -926,7 +1019,46 @@ export function StudioPage() {
                 <div className="studio-meta-grid">
                   <label>Slug<input value={draft.slug} onChange={(event) => updateDraft({ slug: event.target.value.toLocaleLowerCase().replace(/[^a-z0-9-]/g, "-") })} placeholder="my-new-story" /></label>
                   <label>发布日期<input type="date" value={draft.date} onChange={(event) => updateDraft({ date: event.target.value })} /></label>
-                  <label>分类<span className="studio-select"><select value={draft.category} onChange={(event) => updateDraft({ category: event.target.value })}>{categories.map((category) => <option key={category.id} value={category.id}>{category.name.zh} / {category.name.en}</option>)}</select><ChevronDown aria-hidden="true" /></span></label>
+                  <label>分类<span className="studio-select"><select value={draft.category} onChange={(event) => updateDraft({ category: event.target.value })}>{state.categories.map((category) => <option key={category.id} value={category.id}>{category.name.zh} / {category.name.en}</option>)}</select><ChevronDown aria-hidden="true" /></span></label>
+                  <details className="studio-category-manager">
+                    <summary><span><Tags aria-hidden="true" />管理分类</span><ChevronDown aria-hidden="true" /></summary>
+                    <div className="studio-category-list">
+                      {state.categories.map((category) => {
+                        const usage = categoryUsage.get(category.id) ?? { published: 0, drafts: 0 };
+                        const useCount = usage.published + usage.drafts;
+                        const onlyCategory = state.categories.length === 1;
+                        const deleteDisabled = useCount > 0 || onlyCategory;
+                        const deleteReason = onlyCategory
+                          ? "至少保留一个分类"
+                          : usage.published
+                            ? `${usage.published} 篇已发布文章正在使用`
+                            : usage.drafts
+                              ? `${usage.drafts} 篇草稿正在使用`
+                              : "删除分类";
+                        return (
+                          <div className="studio-category-item" key={category.id}>
+                            <div>
+                              <strong>{category.name.zh}<span>{category.name.en}</span></strong>
+                              <small>{category.id} · {useCount ? `${useCount} 篇占用` : "未使用"}</small>
+                            </div>
+                            <button type="button" disabled={deleteDisabled} title={deleteReason} aria-label={`${deleteReason}：${category.name.zh}`} onClick={() => deleteCategory(category)}><Trash2 aria-hidden="true" /></button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <form className="studio-category-form" autoComplete="off" onSubmit={addCategory}>
+                      <div className="studio-category-form-head"><strong>新增分类</strong><span>简介可留空</span></div>
+                      <label>分类标识<input value={categoryForm.id} onChange={(event) => setCategoryForm((current) => ({ ...current, id: event.target.value.toLocaleLowerCase().replace(/[^a-z0-9-]/g, "-") }))} placeholder="photography" /></label>
+                      <div className="studio-category-name-grid">
+                        <label>中文名称<input value={categoryForm.nameZh} onChange={(event) => setCategoryForm((current) => ({ ...current, nameZh: event.target.value }))} placeholder="摄影" /></label>
+                        <label>英文名称<input value={categoryForm.nameEn} onChange={(event) => setCategoryForm((current) => ({ ...current, nameEn: event.target.value }))} placeholder="Photography" /></label>
+                      </div>
+                      <label>中文简介<input value={categoryForm.descriptionZh} onChange={(event) => setCategoryForm((current) => ({ ...current, descriptionZh: event.target.value }))} placeholder="关于影像与观看的记录。" /></label>
+                      <label>英文简介<input value={categoryForm.descriptionEn} onChange={(event) => setCategoryForm((current) => ({ ...current, descriptionEn: event.target.value }))} placeholder="Notes on images and seeing." /></label>
+                      <button type="submit"><Plus aria-hidden="true" />添加分类</button>
+                    </form>
+                    <p className="studio-category-status" aria-live="polite">{categoryStatus}</p>
+                  </details>
                   <label>阅读分钟<input type="number" min="1" max="120" value={draft.readMinutes} onChange={(event) => updateDraft({ readMinutes: Number(event.target.value) })} /></label>
                   <label>标签<input value={draft.tags[locale]} onChange={(event) => updateLocalized("tags", event.target.value)} placeholder="设计, 注意力, 写作" /></label>
                   <label>系列<input value={draft.series[locale]} onChange={(event) => updateLocalized("series", event.target.value)} placeholder="可选" /></label>
@@ -947,7 +1079,7 @@ export function StudioPage() {
                     </button>
                     <button type="button" className="is-secondary" disabled={!canExport || packageStatus !== "idle"} onClick={() => downloadMarkdown(draft, locale)}><Download aria-hidden="true" />仅下载 {locale.toUpperCase()} Markdown</button>
                   </div>
-                  <small>{canPackage ? `将包含 ${completedLocales.length} 个 Markdown 文件和 ${coverAssets.length + bodyAssets.length} 张图片。` : "补全一种语言的标题、摘要、正文、封面和替代文字后即可打包。"}</small>
+                  <small>{canPackage ? `将包含 ${completedLocales.length} 个 Markdown 文件、${coverAssets.length + bodyAssets.length} 张图片和分类配置。` : "补全一种语言的标题、摘要、正文、封面和替代文字后即可打包。"}</small>
                 </div>
               </section>
             </aside>
