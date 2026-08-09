@@ -95,9 +95,12 @@ npm run cf:dev
 ### 构建检查
 
 ```bash
+npm run check:lines
 npm run build
 npm run preview
 ```
+
+仓库内代码文件不得超过 600 个物理行（包含空行）。该检查已接入 `dev`、`test` 与 `build`，超限时会直接失败；依赖、构建产物和锁文件不计入。
 
 ## 页面路由
 
