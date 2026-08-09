@@ -1813,19 +1813,19 @@ main {
 .studio-topbar-document strong {
   max-width: 340px;
   overflow: hidden;
-  font-size: 12px;
+  font-size: 14px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .studio-topbar-document span {
   color: var(--color-text-light);
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .studio-back {
   gap: 7px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
 }
 
@@ -1838,7 +1838,7 @@ main {
 .studio-save-state {
   gap: 6px;
   color: var(--color-text-muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .studio-save-state.is-local,
@@ -1858,7 +1858,7 @@ main {
   background: var(--color-surface);
   color: var(--color-text-primary);
   cursor: pointer;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   transition: border-color 180ms ease-out, background-color 180ms ease-out, color 180ms ease-out;
 }
@@ -1890,7 +1890,7 @@ main {
 
 .studio-shell {
   display: grid;
-  grid-template-columns: 232px minmax(0, 1fr);
+  grid-template-columns: 260px minmax(0, 1fr);
   min-height: calc(100vh - 64px);
 }
 
@@ -1915,14 +1915,14 @@ main {
 .studio-editor-head span,
 .studio-export > div > span {
   color: var(--color-text-light);
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 650;
   letter-spacing: 0.12em;
 }
 
 .studio-sidebar-head h1 {
   margin: 6px 0 0;
-  font-size: 26px;
+  font-size: 30px;
   letter-spacing: -0.05em;
 }
 
@@ -1942,12 +1942,12 @@ main {
   align-items: center;
   justify-content: center;
   gap: 5px;
-  min-height: 34px;
+  min-height: 40px;
   border-radius: 8px;
   background: transparent;
   color: var(--color-text-muted);
   cursor: pointer;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   transition: background-color 180ms ease-out, color 180ms ease-out, box-shadow 180ms ease-out;
 }
@@ -1963,8 +1963,8 @@ main {
 }
 
 .studio-mode-switch svg {
-  width: 13px;
-  height: 13px;
+  width: 15px;
+  height: 15px;
 }
 
 .studio-new-draft {
@@ -1973,13 +1973,13 @@ main {
   justify-content: center;
   gap: 8px;
   width: 100%;
-  min-height: 42px;
+  min-height: 44px;
   margin-top: 12px;
   border-radius: 11px;
   background: var(--color-text-primary);
   color: var(--color-background);
   cursor: pointer;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 650;
   transition: opacity 180ms ease-out;
 }
@@ -1996,8 +1996,8 @@ main {
 .studio-local-note {
   margin: 12px 4px 0;
   color: var(--color-text-muted);
-  font-size: 10px;
-  line-height: 1.55;
+  font-size: 12px;
+  line-height: 1.6;
 }
 
 .studio-backup-actions {
@@ -2016,13 +2016,13 @@ main {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-height: 36px;
+  min-height: 40px;
   border: 1px solid var(--color-border-soft);
   border-radius: 9px;
   background: var(--color-surface);
   color: var(--color-text-muted);
   cursor: pointer;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   transition: border-color 180ms ease-out, color 180ms ease-out, background-color 180ms ease-out;
 }
@@ -2058,7 +2058,7 @@ main {
   justify-content: space-between;
   margin: 28px 4px 10px;
   color: var(--color-text-light);
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 650;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -2072,7 +2072,7 @@ main {
   border-radius: var(--radius-pill);
   background: var(--color-border-soft);
   color: var(--color-text-muted);
-  font-size: 9px;
+  font-size: 10px;
 }
 
 .studio-drafts {
@@ -2085,7 +2085,7 @@ main {
   display: grid;
   gap: 7px;
   width: 100%;
-  padding: 12px;
+  padding: 14px;
   border: 1px solid transparent;
   border-radius: 10px;
   background: transparent;
@@ -2108,7 +2108,7 @@ main {
 
 .studio-drafts button span {
   overflow: hidden;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2116,7 +2116,7 @@ main {
 
 .studio-drafts time {
   color: var(--color-text-light);
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .studio-manager {
@@ -2135,7 +2135,7 @@ main {
 
 .studio-manager-head > div > span {
   color: var(--color-text-light);
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 650;
   letter-spacing: 0.12em;
 }
@@ -2150,7 +2150,7 @@ main {
 .studio-manager-head p {
   margin: 12px 0 0;
   color: var(--color-text-muted);
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.6;
 }
 
@@ -2160,13 +2160,13 @@ main {
   align-items: center;
   justify-content: center;
   gap: 7px;
-  min-height: 42px;
-  padding: 0 17px;
+  min-height: 44px;
+  padding: 0 18px;
   border-radius: 11px;
   background: var(--color-text-primary);
   color: var(--color-background);
   cursor: pointer;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 650;
   transition: opacity 180ms ease-out;
 }
@@ -2178,6 +2178,48 @@ main {
 .studio-manager-create svg {
   width: 15px;
   height: 15px;
+}
+
+.studio-manager-sections {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 20px;
+  padding: 5px;
+  border: 1px solid var(--color-border-soft);
+  border-radius: 12px;
+  background: var(--color-surface-elevated);
+}
+
+.studio-manager-sections button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-width: 112px;
+  min-height: 42px;
+  padding: 0 16px;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 650;
+  transition: background-color 180ms ease-out, color 180ms ease-out, box-shadow 180ms ease-out;
+}
+
+.studio-manager-sections button:hover,
+.studio-manager-sections button.is-active {
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+}
+
+.studio-manager-sections button.is-active {
+  box-shadow: var(--shadow-card);
+}
+
+.studio-manager-sections svg {
+  width: 16px;
+  height: 16px;
 }
 
 .studio-manager-summary {
@@ -2201,7 +2243,7 @@ main {
 .studio-manager-summary span {
   align-self: center;
   color: var(--color-text-muted);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
 }
 
@@ -2209,13 +2251,13 @@ main {
   grid-row: 1 / 3;
   grid-column: 2;
   align-self: center;
-  font-size: 29px;
+  font-size: 32px;
   letter-spacing: -0.05em;
 }
 
 .studio-manager-summary small {
   color: var(--color-text-light);
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .studio-library {
@@ -2238,7 +2280,7 @@ main {
   position: relative;
   display: flex;
   align-items: center;
-  min-height: 42px;
+  min-height: 48px;
   border: 1px solid var(--color-border-soft);
   border-radius: 10px;
   background: var(--color-background);
@@ -2256,8 +2298,8 @@ main {
 .studio-library-category > svg {
   position: absolute;
   left: 13px;
-  width: 15px;
-  height: 15px;
+  width: 16px;
+  height: 16px;
   pointer-events: none;
 }
 
@@ -2265,13 +2307,13 @@ main {
 .studio-library-category select {
   width: 100%;
   min-width: 0;
-  height: 40px;
+  height: 46px;
   padding: 0 13px 0 38px;
   border: 0;
   outline: 0;
   background: transparent;
   color: var(--color-text-primary);
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .studio-library-search input::placeholder {
@@ -2304,13 +2346,13 @@ main {
   flex: 0 0 auto;
   align-items: center;
   gap: 7px;
-  min-height: 34px;
-  padding: 0 11px;
+  min-height: 40px;
+  padding: 0 13px;
   border-radius: 8px;
   background: transparent;
   color: var(--color-text-muted);
   cursor: pointer;
-  font-size: 10px;
+  font-size: 13px;
   font-weight: 600;
   transition: background-color 180ms ease-out, color 180ms ease-out;
 }
@@ -2324,13 +2366,13 @@ main {
 .studio-library-tabs button span {
   display: grid;
   place-items: center;
-  min-width: 19px;
-  height: 19px;
+  min-width: 22px;
+  height: 22px;
   padding: 0 5px;
   border-radius: var(--radius-pill);
   background: var(--color-border-soft);
   color: var(--color-text-light);
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .studio-library-selection {
@@ -2338,7 +2380,7 @@ main {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  min-height: 52px;
+  min-height: 60px;
   padding: 8px 22px;
   border-top: 1px solid var(--color-border-soft);
   border-bottom: 1px solid var(--color-border-soft);
@@ -2362,7 +2404,7 @@ main {
   background: transparent;
   color: var(--color-text-primary);
   cursor: pointer;
-  font-size: 10px;
+  font-size: 13px;
   font-weight: 650;
 }
 
@@ -2373,7 +2415,7 @@ main {
 
 .studio-library-selection > div:first-child span {
   color: var(--color-text-light);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .studio-library-bulk-actions {
@@ -2386,13 +2428,13 @@ main {
 
 .studio-library-bulk-actions select,
 .studio-library-bulk-actions button {
-  min-height: 34px;
+  min-height: 40px;
   border: 1px solid var(--color-border-soft);
   border-radius: 8px;
   background: var(--color-surface);
   color: var(--color-text-primary);
   cursor: pointer;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 600;
 }
 
@@ -2434,16 +2476,16 @@ main {
 }
 
 .studio-library-bulk-actions button svg {
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
 }
 
 .studio-article-row {
   display: grid;
-  grid-template-columns: 28px minmax(260px, 1fr) minmax(110px, 0.22fr) 96px minmax(176px, auto);
-  gap: 14px;
+  grid-template-columns: 32px minmax(280px, 1fr) minmax(120px, 0.22fr) 108px minmax(196px, auto);
+  gap: 16px;
   align-items: center;
-  padding: 17px 22px;
+  padding: 21px 22px;
   border-bottom: 1px solid var(--color-border-soft);
 }
 
@@ -2456,7 +2498,7 @@ main {
   padding-block: 8px;
   background: var(--color-background);
   color: var(--color-text-light);
-  font-size: 8px;
+  font-size: 11px;
   font-weight: 650;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -2465,14 +2507,14 @@ main {
 .studio-article-check {
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 32px;
+  width: 32px;
+  height: 40px;
   cursor: pointer;
 }
 
 .studio-article-check input {
-  width: 15px;
-  height: 15px;
+  width: 17px;
+  height: 17px;
   margin: 0;
   accent-color: var(--color-text-primary);
   cursor: pointer;
@@ -2491,17 +2533,17 @@ main {
 
 .studio-article-main > div small {
   color: var(--color-text-light);
-  font-size: 8px;
+  font-size: 11px;
   font-weight: 600;
 }
 
 .studio-article-status {
   display: inline-flex;
   align-items: center;
-  min-height: 20px;
-  padding: 0 7px;
+  min-height: 24px;
+  padding: 0 9px;
   border-radius: var(--radius-pill);
-  font-size: 8px;
+  font-size: 11px;
   font-weight: 700;
 }
 
@@ -2531,7 +2573,7 @@ main {
 .studio-article-main h3 {
   overflow: hidden;
   margin: 0;
-  font-size: 14px;
+  font-size: 17px;
   letter-spacing: -0.02em;
   line-height: 1.35;
   text-overflow: ellipsis;
@@ -2542,8 +2584,8 @@ main {
   overflow: hidden;
   margin: 5px 0;
   color: var(--color-text-muted);
-  font-size: 10px;
-  line-height: 1.45;
+  font-size: 13px;
+  line-height: 1.55;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2551,7 +2593,7 @@ main {
 .studio-article-main code {
   color: var(--color-text-light);
   font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .studio-article-category,
@@ -2559,17 +2601,17 @@ main {
   display: grid;
   gap: 3px;
   color: var(--color-text-muted);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .studio-article-category strong {
   color: var(--color-text-secondary);
-  font-size: 10px;
+  font-size: 13px;
 }
 
 .studio-article-category span {
   color: var(--color-text-light);
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .studio-article-actions {
@@ -2584,14 +2626,14 @@ main {
   align-items: center;
   justify-content: center;
   gap: 5px;
-  min-height: 32px;
-  padding: 0 9px;
+  min-height: 38px;
+  padding: 0 11px;
   border: 1px solid var(--color-border-soft);
   border-radius: 8px;
   background: var(--color-surface);
   color: var(--color-text-muted);
   cursor: pointer;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 600;
   transition: border-color 180ms ease-out, background-color 180ms ease-out, color 180ms ease-out;
 }
@@ -2604,8 +2646,8 @@ main {
 }
 
 .studio-article-actions svg {
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
 }
 
 .studio-library-empty {
@@ -2625,11 +2667,11 @@ main {
 
 .studio-library-empty strong {
   color: var(--color-text-secondary);
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .studio-library-empty span {
-  font-size: 10px;
+  font-size: 13px;
 }
 
 .studio-manager-status {
@@ -2637,7 +2679,7 @@ main {
   margin: 0;
   padding: 0 22px;
   color: var(--color-text-secondary);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.55;
 }
 
@@ -2655,19 +2697,282 @@ main {
   border-top: 1px solid var(--color-border-soft);
   background: var(--color-surface-elevated);
   color: var(--color-text-light);
-  font-size: 9px;
-  line-height: 1.55;
+  font-size: 12px;
+  line-height: 1.6;
 }
 
 .studio-manager-note svg {
   flex: 0 0 auto;
-  width: 13px;
-  height: 13px;
+  width: 15px;
+  height: 15px;
   margin-top: 1px;
+}
+
+.studio-taxonomy-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 390px;
+  gap: 20px;
+  align-items: start;
+}
+
+.studio-taxonomy-panel,
+.studio-taxonomy-form {
+  border: 1px solid var(--color-border-soft);
+  border-radius: 18px;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.studio-taxonomy-panel {
+  overflow: hidden;
+}
+
+.studio-taxonomy-form {
+  position: sticky;
+  top: 84px;
+  display: grid;
+  gap: 16px;
+  padding: 24px;
+}
+
+.studio-taxonomy-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 22px;
+}
+
+.studio-taxonomy-panel-head > div > span {
+  color: var(--color-text-light);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.studio-taxonomy-panel-head h3 {
+  margin: 5px 0 0;
+  font-size: 21px;
+  letter-spacing: -0.035em;
+}
+
+.studio-taxonomy-panel-head > strong {
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.studio-taxonomy-panel-head > button {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--color-background);
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.studio-taxonomy-panel-head > button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.studio-taxonomy-search {
+  margin: 0 22px 18px;
+}
+
+.studio-taxonomy-list {
+  border-top: 1px solid var(--color-border-soft);
+}
+
+.studio-taxonomy-item {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  padding: 20px 22px;
+  border-bottom: 1px solid var(--color-border-soft);
+}
+
+.studio-taxonomy-item:last-child {
+  border-bottom: 0;
+}
+
+.studio-taxonomy-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 11px;
+  background: var(--color-background);
+  color: var(--color-text-muted);
+}
+
+.studio-taxonomy-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.studio-taxonomy-content {
+  min-width: 0;
+}
+
+.studio-taxonomy-content > div {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+}
+
+.studio-taxonomy-content h4 {
+  margin: 0;
+  font-size: 16px;
+  letter-spacing: -0.02em;
+}
+
+.studio-taxonomy-content > div > span,
+.studio-taxonomy-content small {
+  color: var(--color-text-light);
+  font-size: 11px;
+}
+
+.studio-taxonomy-content p {
+  overflow: hidden;
+  margin: 6px 0;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.studio-taxonomy-actions {
+  display: flex;
+  gap: 7px;
+}
+
+.studio-taxonomy-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 38px;
+  padding: 0 11px;
+  border: 1px solid var(--color-border-soft);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.studio-taxonomy-actions button:hover:not(:disabled) {
+  border-color: var(--color-border);
+  background: var(--color-background);
+  color: var(--color-text-primary);
+}
+
+.studio-taxonomy-actions button.is-danger:hover:not(:disabled) {
+  color: #b42318;
+}
+
+.studio-taxonomy-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.38;
+}
+
+.studio-taxonomy-actions svg {
+  width: 14px;
+  height: 14px;
+}
+
+.studio-taxonomy-empty {
+  padding: 60px 22px;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.studio-taxonomy-help {
+  margin: -4px 0 2px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.studio-taxonomy-form > label,
+.studio-taxonomy-name-grid label {
+  display: grid;
+  gap: 7px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.studio-taxonomy-form input,
+.studio-taxonomy-form textarea {
+  width: 100%;
+  border: 1px solid var(--color-border-soft);
+  border-radius: 9px;
+  outline: 0;
+  background: var(--color-background);
+  color: var(--color-text-primary);
+  font-size: 14px;
+  transition: border-color 180ms ease-out, box-shadow 180ms ease-out;
+}
+
+.studio-taxonomy-form input {
+  min-height: 44px;
+  padding: 0 12px;
+}
+
+.studio-taxonomy-form textarea {
+  resize: vertical;
+  padding: 11px 12px;
+  line-height: 1.55;
+}
+
+.studio-taxonomy-form input:focus,
+.studio-taxonomy-form textarea:focus {
+  border-color: var(--color-border);
+  box-shadow: 0 0 0 3px var(--color-border-soft);
+}
+
+.studio-taxonomy-form input:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.studio-taxonomy-name-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.studio-taxonomy-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  border-radius: 10px;
+  background: var(--color-text-primary);
+  color: var(--color-background);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.studio-taxonomy-submit svg {
+  width: 15px;
+  height: 15px;
 }
 
 .studio-mode-switch button:focus-visible,
 .studio-manager-create:focus-visible,
+.studio-manager-sections button:focus-visible,
+.studio-taxonomy-actions button:focus-visible,
+.studio-taxonomy-submit:focus-visible,
 .studio-library-tabs button:focus-visible,
 .studio-library-selection button:focus-visible,
 .studio-article-actions button:focus-visible,
@@ -3621,7 +3926,7 @@ main {
   }
 
   .studio-article-row {
-    grid-template-columns: 28px minmax(240px, 1fr) 110px minmax(160px, auto);
+    grid-template-columns: 32px minmax(250px, 1fr) 120px minmax(190px, auto);
   }
 
   .studio-article-date,
@@ -3632,7 +3937,15 @@ main {
 
 @media (max-width: 980px) {
   .studio-shell {
-    grid-template-columns: 220px minmax(0, 1fr);
+    grid-template-columns: 240px minmax(0, 1fr);
+  }
+
+  .studio-taxonomy-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .studio-taxonomy-form {
+    position: static;
   }
 
   .studio-assets {
@@ -3709,7 +4022,7 @@ main {
 
   .studio-topbar {
     grid-template-columns: 1fr auto 1fr;
-    min-height: 58px;
+    min-height: 64px;
     padding: 0 14px;
   }
 
@@ -3731,7 +4044,8 @@ main {
   }
 
   .studio-topbar-button {
-    width: 38px;
+    width: 44px;
+    min-height: 44px;
     padding: 0;
   }
 
@@ -3769,6 +4083,10 @@ main {
     margin-top: 14px;
   }
 
+  .studio-mode-switch button {
+    min-height: 44px;
+  }
+
   .studio-local-note {
     display: none;
   }
@@ -3785,13 +4103,14 @@ main {
   .studio-backup-actions button,
   .studio-backup-actions label {
     min-width: 76px;
+    min-height: 44px;
   }
 
   .studio-new-draft {
     grid-column: 2;
     grid-row: 1;
     width: max-content;
-    min-height: 40px;
+    min-height: 44px;
     margin: 0;
     padding: 0 16px;
   }
@@ -3809,7 +4128,7 @@ main {
   }
 
   .studio-drafts button {
-    flex: 0 0 180px;
+    flex: 0 0 200px;
   }
 
   .studio-manager {
@@ -3821,6 +4140,18 @@ main {
     display: block;
     align-items: flex-start;
     margin-bottom: 24px;
+  }
+
+  .studio-manager-sections {
+    gap: 4px;
+    padding: 4px;
+  }
+
+  .studio-manager-sections button {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 44px;
+    padding-inline: 10px;
   }
 
   .studio-manager-create {
@@ -3849,12 +4180,24 @@ main {
     padding: 16px 16px 10px;
   }
 
+  .studio-library-search input,
+  .studio-library-category select,
+  .studio-library-bulk-actions select,
+  .studio-taxonomy-form input,
+  .studio-taxonomy-form textarea {
+    font-size: 16px;
+  }
+
   .studio-library {
     max-width: 100%;
   }
 
   .studio-library-tabs {
     padding: 0 16px 12px;
+  }
+
+  .studio-library-tabs button {
+    min-height: 44px;
   }
 
   .studio-library-selection {
@@ -3866,6 +4209,12 @@ main {
 
   .studio-library-bulk-actions {
     flex-wrap: wrap;
+  }
+
+  .studio-library-bulk-actions select,
+  .studio-library-bulk-actions button,
+  .studio-library-selection > div:first-child button {
+    min-height: 44px;
   }
 
   .studio-article-table-head {
@@ -3900,7 +4249,7 @@ main {
 
   .studio-article-date {
     display: block;
-    font-size: 9px;
+    font-size: 12px;
   }
 
   .studio-article-actions {
@@ -3909,9 +4258,44 @@ main {
     margin-top: 2px;
   }
 
+  .studio-article-actions button,
+  .studio-article-actions a {
+    min-height: 44px;
+  }
+
   .studio-manager-note,
   .studio-manager-status:not(:empty) {
     padding-inline: 16px;
+  }
+
+  .studio-taxonomy-panel-head,
+  .studio-taxonomy-item {
+    padding-inline: 16px;
+  }
+
+  .studio-taxonomy-search {
+    margin-inline: 16px;
+  }
+
+  .studio-taxonomy-form {
+    padding: 20px 16px;
+  }
+
+  .studio-taxonomy-item {
+    grid-template-columns: 42px minmax(0, 1fr);
+  }
+
+  .studio-taxonomy-actions {
+    grid-column: 2;
+    flex-wrap: wrap;
+  }
+
+  .studio-taxonomy-actions button {
+    min-height: 44px;
+  }
+
+  .studio-taxonomy-name-grid {
+    grid-template-columns: 1fr;
   }
 
   .studio-editor {

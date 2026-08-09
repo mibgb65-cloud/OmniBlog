@@ -13,6 +13,7 @@ import {
   Files,
   FolderInput,
   ImagePlus,
+  Layers3,
   ListFilter,
   LogOut,
   LoaderCircle,
@@ -26,6 +27,7 @@ import {
   Tags,
   Trash2,
   UploadCloud,
+  X,
 } from "lucide-react";
 import { strFromU8, strToU8, unzip, zip } from "fflate";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ClipboardEvent, type DragEvent, type FormEvent } from "react";
@@ -71,6 +73,12 @@ type StudioState = {
   drafts: StudioDraft[];
   activeId: string;
   categories: Category[];
+  series: StudioSeries[];
+};
+
+type StudioSeries = {
+  id: string;
+  name: LocalizedDraft;
 };
 
 type CategoryForm = {
@@ -79,6 +87,12 @@ type CategoryForm = {
   nameEn: string;
   descriptionZh: string;
   descriptionEn: string;
+};
+
+type SeriesForm = {
+  id: string;
+  nameZh: string;
+  nameEn: string;
 };
 
 type ImageAsset = {
@@ -95,6 +109,7 @@ type BodyImageAsset = ImageAsset & {
 
 type SaveStatus = "loading" | "saving" | "saved" | "local" | "error";
 type StudioView = "write" | "manage";
+type ManagementSection = "articles" | "categories" | "series";
 type ArticleFilter = "all" | "published" | "draft" | "pending";
 
 type ManagedArticle = {
@@ -139,6 +154,7 @@ const emptyCategoryForm: CategoryForm = {
   descriptionZh: "",
   descriptionEn: "",
 };
+const emptySeriesForm: SeriesForm = { id: "", nameZh: "", nameEn: "" };
 
 function copyDefaultCategories(): Category[] {
   return defaultCategories.map((category) => ({
@@ -185,6 +201,25 @@ function createDraftFromStory(story: Story): StudioDraft {
   };
 }
 
+function discoverSeries(drafts: StudioDraft[]): StudioSeries[] {
+  const names = [
+    ...stories.map((story) => ({ zh: story.series.zh ?? "", en: story.series.en ?? "" })),
+    ...drafts.map((draft) => ({ zh: draft.series.zh.trim(), en: draft.series.en.trim() })),
+  ].filter((name) => name.zh || name.en);
+  const catalog: StudioSeries[] = [];
+  const usedIds = new Set<string>();
+  names.forEach((name) => {
+    if (catalog.some((item) => item.name.zh === name.zh && item.name.en === name.en)) return;
+    const preferredId = name.en.toLocaleLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/^-+|-+$/g, "") || `series-${catalog.length + 1}`;
+    let id = preferredId;
+    let suffix = 2;
+    while (usedIds.has(id)) id = `${preferredId}-${suffix++}`;
+    usedIds.add(id);
+    catalog.push({ id, name: { ...name } });
+  });
+  return catalog;
+}
+
 function loadStudioState(): StudioState {
   try {
     const saved = normalizeStudioState(JSON.parse(localStorage.getItem(storageKey) ?? "null"));
@@ -193,11 +228,18 @@ function loadStudioState(): StudioState {
     // Start with a clean draft if local data is malformed.
   }
   const draft = createDraft();
-  return { drafts: [draft], activeId: draft.id, categories: copyDefaultCategories() };
+  return { drafts: [draft], activeId: draft.id, categories: copyDefaultCategories(), series: discoverSeries([draft]) };
 }
 
 function splitTags(value: string) {
   return value.split(/[,，]/).map((tag) => tag.trim()).filter(Boolean);
+}
+
+function seriesNameMatches(value: LocalizedDraft, series: StudioSeries) {
+  return (["zh", "en"] as Locale[]).some((locale) => {
+    const currentName = value[locale].trim();
+    return Boolean(currentName && currentName === series.name[locale].trim());
+  });
 }
 
 function buildMarkdown(draft: StudioDraft, locale: Locale) {
@@ -287,6 +329,14 @@ function isCategory(value: unknown): value is Category {
     && isLocalizedDraft(category.description);
 }
 
+function isStudioSeries(value: unknown): value is StudioSeries {
+  if (!value || typeof value !== "object") return false;
+  const series = value as Partial<StudioSeries>;
+  return typeof series.id === "string"
+    && /^[a-z0-9-]+$/.test(series.id)
+    && isLocalizedDraft(series.name);
+}
+
 function isStudioDraft(value: unknown): value is StudioDraft {
   if (!value || typeof value !== "object") return false;
   const draft = value as Partial<StudioDraft>;
@@ -307,7 +357,7 @@ function isStudioDraft(value: unknown): value is StudioDraft {
 
 function normalizeStudioState(value: unknown): StudioState | null {
   if (!value || typeof value !== "object") return null;
-  const state = value as { drafts?: unknown; activeId?: unknown; categories?: unknown };
+  const state = value as { drafts?: unknown; activeId?: unknown; categories?: unknown; series?: unknown };
   if (!Array.isArray(state.drafts) || !state.drafts.length || !state.drafts.every(isStudioDraft) || typeof state.activeId !== "string") return null;
   if (!state.drafts.some((draft) => draft.id === state.activeId)) return null;
 
@@ -317,7 +367,12 @@ function normalizeStudioState(value: unknown): StudioState | null {
   if (new Set(managedCategories.map((category) => category.id)).size !== managedCategories.length) return null;
   if (state.drafts.some((draft) => !managedCategories.some((category) => category.id === draft.category))) return null;
 
-  return { drafts: state.drafts, activeId: state.activeId, categories: managedCategories };
+  const managedSeries = Array.isArray(state.series) && state.series.every(isStudioSeries)
+    ? state.series.map((series) => ({ ...series, name: { ...series.name } }))
+    : discoverSeries(state.drafts);
+  if (new Set(managedSeries.map((series) => series.id)).size !== managedSeries.length) return null;
+
+  return { drafts: state.drafts, activeId: state.activeId, categories: managedCategories, series: managedSeries };
 }
 
 async function createPublishPackage(
@@ -447,12 +502,19 @@ export function StudioPage() {
   const [categoryForm, setCategoryForm] = useState<CategoryForm>(emptyCategoryForm);
   const [categoryStatus, setCategoryStatus] = useState("");
   const [view, setView] = useState<StudioView>("write");
+  const [managementSection, setManagementSection] = useState<ManagementSection>("articles");
   const [articleFilter, setArticleFilter] = useState<ArticleFilter>("all");
   const [articleQuery, setArticleQuery] = useState("");
   const [articleCategory, setArticleCategory] = useState("all");
   const [selectedArticleKeys, setSelectedArticleKeys] = useState<Set<string>>(() => new Set());
   const [moveCategory, setMoveCategory] = useState(defaultCategories[0]?.id ?? "notes");
   const [managerStatus, setManagerStatus] = useState("");
+  const [managerCategoryQuery, setManagerCategoryQuery] = useState("");
+  const [managerCategoryForm, setManagerCategoryForm] = useState<CategoryForm>(emptyCategoryForm);
+  const [editingCategoryId, setEditingCategoryId] = useState("");
+  const [seriesQuery, setSeriesQuery] = useState("");
+  const [seriesForm, setSeriesForm] = useState<SeriesForm>(emptySeriesForm);
+  const [editingSeriesId, setEditingSeriesId] = useState("");
   const bodyEditorRef = useRef<HTMLTextAreaElement>(null);
   const bodyImageInputRef = useRef<HTMLInputElement>(null);
   const bodyAssetsRef = useRef<BodyImageAsset[]>([]);
@@ -533,6 +595,32 @@ export function StudioPage() {
     draft: managedArticles.filter((item) => item.status === "draft").length,
     pending: managedArticles.filter((item) => item.status === "pending").length,
   }), [managedArticles]);
+  const seriesUsage = useMemo(() => new Map(state.series.map((series) => [series.id, {
+    published: stories.filter((story) => seriesNameMatches({ zh: story.series.zh ?? "", en: story.series.en ?? "" }, series)).length,
+    drafts: state.drafts.filter((item) => seriesNameMatches(item.series, series)).length,
+  }])), [state.drafts, state.series]);
+  const visibleCategories = useMemo(() => {
+    const query = managerCategoryQuery.trim().toLocaleLowerCase();
+    if (!query) return state.categories;
+    return state.categories.filter((category) => [category.id, category.name.zh, category.name.en, category.description.zh, category.description.en]
+      .some((value) => value.toLocaleLowerCase().includes(query)));
+  }, [managerCategoryQuery, state.categories]);
+  const visibleSeries = useMemo(() => {
+    const query = seriesQuery.trim().toLocaleLowerCase();
+    if (!query) return state.series;
+    return state.series.filter((series) => [series.id, series.name.zh, series.name.en]
+      .some((value) => value.toLocaleLowerCase().includes(query)));
+  }, [seriesQuery, state.series]);
+  const managerHeading = {
+    articles: { eyebrow: `LIBRARY / ${managedArticles.length} ARTICLES`, title: "全部文章", description: "统一查看本地草稿与已发布文章，筛选后可批量移动到其他分类。" },
+    categories: { eyebrow: `TAXONOMY / ${state.categories.length} CATEGORIES`, title: "分类管理", description: "维护文章分类的中英文名称与简介，并查看每个分类的占用情况。" },
+    series: { eyebrow: `COLLECTIONS / ${state.series.length} SERIES`, title: "系列管理", description: "集中维护系列名称；修改已发布系列时会自动建立待更新稿。" },
+  }[managementSection];
+  const managerItemCount = managementSection === "articles"
+    ? managedArticles.length
+    : managementSection === "categories"
+      ? state.categories.length
+      : state.series.length;
 
   bodyAssetsRef.current = bodyAssets;
 
@@ -786,6 +874,134 @@ export function StudioPage() {
     if (!window.confirm(`确定删除“${category.name.zh}”分类吗？`)) return;
     setState((current) => ({ ...current, categories: current.categories.filter((item) => item.id !== category.id) }));
     setCategoryStatus(`已删除“${category.name.zh}”。`);
+    setManagerStatus(`已删除分类“${category.name.zh}”。`);
+    if (editingCategoryId === category.id) {
+      setEditingCategoryId("");
+      setManagerCategoryForm(emptyCategoryForm);
+    }
+  };
+
+  const editManagerCategory = (category: Category) => {
+    setEditingCategoryId(category.id);
+    setManagerCategoryForm({
+      id: category.id,
+      nameZh: category.name.zh,
+      nameEn: category.name.en,
+      descriptionZh: category.description.zh,
+      descriptionEn: category.description.en,
+    });
+    setManagerStatus("");
+  };
+
+  const saveManagerCategory = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const id = managerCategoryForm.id.trim().toLocaleLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/^-+|-+$/g, "");
+    const nameZh = managerCategoryForm.nameZh.trim();
+    const nameEn = managerCategoryForm.nameEn.trim();
+    if (!id || !nameZh || !nameEn) {
+      setManagerStatus("请填写分类标识、中英文名称。 ");
+      return;
+    }
+    if (!editingCategoryId && state.categories.some((category) => category.id === id)) {
+      setManagerStatus("这个分类标识已经存在，请换一个。 ");
+      return;
+    }
+    const nextCategory: Category = {
+      id: editingCategoryId || id,
+      name: { zh: nameZh, en: nameEn },
+      description: {
+        zh: managerCategoryForm.descriptionZh.trim() || `${nameZh}分类文章。`,
+        en: managerCategoryForm.descriptionEn.trim() || `${nameEn} stories.`,
+      },
+    };
+    setState((current) => ({
+      ...current,
+      categories: editingCategoryId
+        ? current.categories.map((category) => category.id === editingCategoryId ? nextCategory : category)
+        : [...current.categories, nextCategory],
+    }));
+    setManagerStatus(editingCategoryId ? `已更新分类“${nameZh}”。` : `已创建分类“${nameZh}”。`);
+    setEditingCategoryId("");
+    setManagerCategoryForm(emptyCategoryForm);
+  };
+
+  const editSeries = (series: StudioSeries) => {
+    setEditingSeriesId(series.id);
+    setSeriesForm({ id: series.id, nameZh: series.name.zh, nameEn: series.name.en });
+    setManagerStatus("");
+  };
+
+  const updateSeriesReferences = (current: StudioState, series: StudioSeries, nextName: LocalizedDraft | null) => {
+    const now = new Date().toISOString();
+    const matchingStories = stories.filter((story) => seriesNameMatches({ zh: story.series.zh ?? "", en: story.series.en ?? "" }, series));
+    const nextDrafts = current.drafts.map((item) => seriesNameMatches(item.series, series)
+      ? { ...item, series: nextName ? { ...nextName } : { zh: "", en: "" }, updatedAt: now }
+      : item);
+    const existingSlugs = new Set(nextDrafts.map((item) => item.slug));
+    const imported = matchingStories
+      .filter((story) => !existingSlugs.has(story.slug))
+      .map((story) => ({
+        ...createDraftFromStory(story),
+        series: nextName ? { ...nextName } : { zh: "", en: "" },
+        updatedAt: now,
+      }));
+    return [...imported, ...nextDrafts];
+  };
+
+  const saveSeries = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const id = seriesForm.id.trim().toLocaleLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/^-+|-+$/g, "");
+    const nameZh = seriesForm.nameZh.trim();
+    const nameEn = seriesForm.nameEn.trim();
+    if (!id || !nameZh || !nameEn) {
+      setManagerStatus("请填写系列标识、中英文名称。 ");
+      return;
+    }
+    if (!editingSeriesId && state.series.some((series) => series.id === id)) {
+      setManagerStatus("这个系列标识已经存在，请换一个。 ");
+      return;
+    }
+    const nextSeries: StudioSeries = { id: editingSeriesId || id, name: { zh: nameZh, en: nameEn } };
+    const previousSeries = editingSeriesId ? state.series.find((series) => series.id === editingSeriesId) : undefined;
+    const publishedCount = previousSeries ? seriesUsage.get(previousSeries.id)?.published ?? 0 : 0;
+    setState((current) => {
+      const drafts = previousSeries
+        ? updateSeriesReferences(current, previousSeries, nextSeries.name)
+        : current.drafts;
+      return {
+        ...current,
+        drafts,
+        series: editingSeriesId
+          ? current.series.map((series) => series.id === editingSeriesId ? nextSeries : series)
+          : [...current.series, nextSeries],
+      };
+    });
+    setManagerStatus(editingSeriesId
+      ? `已更新系列“${nameZh}”${publishedCount ? `，${publishedCount} 篇已发布文章已建立待更新稿` : ""}。`
+      : `已创建系列“${nameZh}”。`);
+    setEditingSeriesId("");
+    setSeriesForm(emptySeriesForm);
+  };
+
+  const deleteSeries = (series: StudioSeries) => {
+    const usage = seriesUsage.get(series.id) ?? { published: 0, drafts: 0 };
+    const useCount = usage.published + usage.drafts;
+    const message = useCount
+      ? `“${series.name.zh}”正在被 ${useCount} 篇文章使用。删除后会从本地稿移除，并为已发布文章建立待更新稿，是否继续？`
+      : `确定删除系列“${series.name.zh}”吗？`;
+    if (!window.confirm(message)) return;
+    setState((current) => {
+      return {
+        ...current,
+        drafts: updateSeriesReferences(current, series, null),
+        series: current.series.filter((item) => item.id !== series.id),
+      };
+    });
+    setManagerStatus(`已删除系列“${series.name.zh}”${usage.published ? `，${usage.published} 篇已发布文章已建立待更新稿` : ""}。`);
+    if (editingSeriesId === series.id) {
+      setEditingSeriesId("");
+      setSeriesForm(emptySeriesForm);
+    }
   };
 
   const processCover = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -1032,8 +1248,8 @@ export function StudioPage() {
       <header className="studio-topbar">
         <TransitionLink to="/zh" className="studio-back"><ArrowLeft aria-hidden="true" />返回博客</TransitionLink>
         <div className="studio-topbar-document">
-          <strong>{view === "manage" ? "全部文章" : draft.title[locale] || "未命名草稿"}</strong>
-          <span>{view === "manage" ? `${managedArticles.length} 篇文章` : `${locale === "zh" ? "中文" : "English"} · ${wordCount} 字`}</span>
+          <strong>{view === "manage" ? managerHeading.title : draft.title[locale] || "未命名草稿"}</strong>
+          <span>{view === "manage" ? `${managerItemCount} 项` : `${locale === "zh" ? "中文" : "English"} · ${wordCount} 字`}</span>
         </div>
         <div className="studio-topbar-actions">
           <span className={`studio-save-state is-${saveStatus}`} aria-live="polite">
@@ -1108,13 +1324,27 @@ export function StudioPage() {
           <section className="studio-manager" aria-labelledby="studio-manager-title">
             <header className="studio-manager-head">
               <div>
-                <span>LIBRARY / {managedArticles.length} ARTICLES</span>
-                <h2 id="studio-manager-title">全部文章</h2>
-                <p>统一查看本地草稿与已发布文章，筛选后可批量移动到其他分类。</p>
+                <span>{managerHeading.eyebrow}</span>
+                <h2 id="studio-manager-title">{managerHeading.title}</h2>
+                <p>{managerHeading.description}</p>
               </div>
-              <button type="button" className="studio-manager-create" onClick={addDraft}><FilePlus2 aria-hidden="true" />新建文章</button>
+              {managementSection === "articles" ? <button type="button" className="studio-manager-create" onClick={addDraft}><FilePlus2 aria-hidden="true" />新建文章</button> : null}
             </header>
 
+            <nav className="studio-manager-sections" aria-label="管理内容">
+              {([
+                ["articles", "文章", Files],
+                ["categories", "分类", Tags],
+                ["series", "系列", Layers3],
+              ] as const).map(([section, label, Icon]) => (
+                <button key={section} type="button" className={managementSection === section ? "is-active" : ""} onClick={() => { setManagementSection(section); setManagerStatus(""); }}>
+                  <Icon aria-hidden="true" />{label}
+                </button>
+              ))}
+            </nav>
+
+            {managementSection === "articles" ? (
+              <>
             <div className="studio-manager-summary" aria-label="文章概览">
               <div><span>线上文章</span><strong>{stories.length}</strong><small>当前博客可见</small></div>
               <div><span>本地草稿</span><strong>{state.drafts.length}</strong><small>保存在此浏览器</small></div>
@@ -1218,6 +1448,110 @@ export function StudioPage() {
               <p className="studio-manager-status" aria-live="polite">{managerStatus}</p>
               <p className="studio-manager-note"><CircleAlert aria-hidden="true" />移动已发布文章时会建立待更新稿；下载发布包并重新部署后，线上分类才会变化。</p>
             </section>
+              </>
+            ) : managementSection === "categories" ? (
+              <div className="studio-taxonomy-workspace">
+                <section className="studio-taxonomy-panel" aria-labelledby="studio-categories-list-title">
+                  <div className="studio-taxonomy-panel-head">
+                    <div><span>CATEGORIES</span><h3 id="studio-categories-list-title">全部分类</h3></div>
+                    <strong>{visibleCategories.length} / {state.categories.length}</strong>
+                  </div>
+                  <label className="studio-library-search studio-taxonomy-search">
+                    <Search aria-hidden="true" /><span className="sr-only">搜索分类</span>
+                    <input value={managerCategoryQuery} onChange={(event) => setManagerCategoryQuery(event.target.value)} placeholder="搜索名称、标识或简介" />
+                  </label>
+                  <div className="studio-taxonomy-list">
+                    {visibleCategories.map((category) => {
+                      const usage = categoryUsage.get(category.id) ?? { published: 0, drafts: 0 };
+                      const useCount = usage.published + usage.drafts;
+                      const onlyCategory = state.categories.length === 1;
+                      const deleteDisabled = onlyCategory || useCount > 0;
+                      const deleteReason = onlyCategory ? "至少保留一个分类" : useCount ? "请先移动占用该分类的文章" : "删除分类";
+                      return (
+                        <article className="studio-taxonomy-item" key={category.id}>
+                          <div className="studio-taxonomy-icon"><Tags aria-hidden="true" /></div>
+                          <div className="studio-taxonomy-content">
+                            <div><h4>{category.name.zh}</h4><span>{category.name.en}</span></div>
+                            <p>{category.description.zh}</p>
+                            <small>{category.id} · 线上 {usage.published} · 本地稿 {usage.drafts}</small>
+                          </div>
+                          <div className="studio-taxonomy-actions">
+                            <button type="button" onClick={() => editManagerCategory(category)}><PenLine aria-hidden="true" />编辑</button>
+                            <button type="button" className="is-danger" disabled={deleteDisabled} title={deleteReason} onClick={() => deleteCategory(category)}><Trash2 aria-hidden="true" />删除</button>
+                          </div>
+                        </article>
+                      );
+                    })}
+                    {!visibleCategories.length ? <div className="studio-taxonomy-empty">没有符合条件的分类。</div> : null}
+                  </div>
+                </section>
+
+                <form className="studio-taxonomy-form" onSubmit={saveManagerCategory}>
+                  <div className="studio-taxonomy-panel-head">
+                    <div><span>{editingCategoryId ? "EDIT" : "NEW"}</span><h3>{editingCategoryId ? "编辑分类" : "新增分类"}</h3></div>
+                    {editingCategoryId ? <button type="button" aria-label="取消编辑分类" onClick={() => { setEditingCategoryId(""); setManagerCategoryForm(emptyCategoryForm); }}><X aria-hidden="true" /></button> : null}
+                  </div>
+                  <p className="studio-taxonomy-help">分类标识用于文章元数据与分类路由，创建后保持不变。</p>
+                  <label>分类标识<input value={managerCategoryForm.id} disabled={Boolean(editingCategoryId)} onChange={(event) => setManagerCategoryForm((current) => ({ ...current, id: event.target.value.toLocaleLowerCase().replace(/[^a-z0-9-]/g, "-") }))} placeholder="design" /></label>
+                  <div className="studio-taxonomy-name-grid">
+                    <label>中文名称<input value={managerCategoryForm.nameZh} onChange={(event) => setManagerCategoryForm((current) => ({ ...current, nameZh: event.target.value }))} placeholder="设计" /></label>
+                    <label>英文名称<input value={managerCategoryForm.nameEn} onChange={(event) => setManagerCategoryForm((current) => ({ ...current, nameEn: event.target.value }))} placeholder="Design" /></label>
+                  </div>
+                  <label>中文简介<textarea rows={3} value={managerCategoryForm.descriptionZh} onChange={(event) => setManagerCategoryForm((current) => ({ ...current, descriptionZh: event.target.value }))} placeholder="关于界面、产品与视觉秩序的观察。" /></label>
+                  <label>英文简介<textarea rows={3} value={managerCategoryForm.descriptionEn} onChange={(event) => setManagerCategoryForm((current) => ({ ...current, descriptionEn: event.target.value }))} placeholder="Observations on interfaces and visual order." /></label>
+                  <button type="submit" className="studio-taxonomy-submit">{editingCategoryId ? <Check aria-hidden="true" /> : <Plus aria-hidden="true" />}{editingCategoryId ? "保存分类" : "创建分类"}</button>
+                  <p className="studio-manager-status" aria-live="polite">{managerStatus}</p>
+                </form>
+              </div>
+            ) : (
+              <div className="studio-taxonomy-workspace">
+                <section className="studio-taxonomy-panel" aria-labelledby="studio-series-list-title">
+                  <div className="studio-taxonomy-panel-head">
+                    <div><span>SERIES</span><h3 id="studio-series-list-title">全部系列</h3></div>
+                    <strong>{visibleSeries.length} / {state.series.length}</strong>
+                  </div>
+                  <label className="studio-library-search studio-taxonomy-search">
+                    <Search aria-hidden="true" /><span className="sr-only">搜索系列</span>
+                    <input value={seriesQuery} onChange={(event) => setSeriesQuery(event.target.value)} placeholder="搜索系列名称或标识" />
+                  </label>
+                  <div className="studio-taxonomy-list">
+                    {visibleSeries.map((series) => {
+                      const usage = seriesUsage.get(series.id) ?? { published: 0, drafts: 0 };
+                      return (
+                        <article className="studio-taxonomy-item" key={series.id}>
+                          <div className="studio-taxonomy-icon"><Layers3 aria-hidden="true" /></div>
+                          <div className="studio-taxonomy-content">
+                            <div><h4>{series.name.zh}</h4><span>{series.name.en}</span></div>
+                            <p>线上 {usage.published} 篇 · 本地稿 {usage.drafts} 篇</p>
+                            <small>{series.id}</small>
+                          </div>
+                          <div className="studio-taxonomy-actions">
+                            <button type="button" onClick={() => editSeries(series)}><PenLine aria-hidden="true" />编辑</button>
+                            <button type="button" className="is-danger" onClick={() => deleteSeries(series)}><Trash2 aria-hidden="true" />删除</button>
+                          </div>
+                        </article>
+                      );
+                    })}
+                    {!visibleSeries.length ? <div className="studio-taxonomy-empty">还没有系列，可从右侧创建第一个。</div> : null}
+                  </div>
+                </section>
+
+                <form className="studio-taxonomy-form" onSubmit={saveSeries}>
+                  <div className="studio-taxonomy-panel-head">
+                    <div><span>{editingSeriesId ? "EDIT" : "NEW"}</span><h3>{editingSeriesId ? "编辑系列" : "新增系列"}</h3></div>
+                    {editingSeriesId ? <button type="button" aria-label="取消编辑系列" onClick={() => { setEditingSeriesId(""); setSeriesForm(emptySeriesForm); }}><X aria-hidden="true" /></button> : null}
+                  </div>
+                  <p className="studio-taxonomy-help">重命名或删除使用中的系列，会同步更新本地稿并为线上文章建立待更新稿。</p>
+                  <label>系列标识<input value={seriesForm.id} disabled={Boolean(editingSeriesId)} onChange={(event) => setSeriesForm((current) => ({ ...current, id: event.target.value.toLocaleLowerCase().replace(/[^a-z0-9-]/g, "-") }))} placeholder="design-notes" /></label>
+                  <div className="studio-taxonomy-name-grid">
+                    <label>中文名称<input value={seriesForm.nameZh} onChange={(event) => setSeriesForm((current) => ({ ...current, nameZh: event.target.value }))} placeholder="设计札记" /></label>
+                    <label>英文名称<input value={seriesForm.nameEn} onChange={(event) => setSeriesForm((current) => ({ ...current, nameEn: event.target.value }))} placeholder="Design Notes" /></label>
+                  </div>
+                  <button type="submit" className="studio-taxonomy-submit">{editingSeriesId ? <Check aria-hidden="true" /> : <Plus aria-hidden="true" />}{editingSeriesId ? "保存系列" : "创建系列"}</button>
+                  <p className="studio-manager-status" aria-live="polite">{managerStatus}</p>
+                </form>
+              </div>
+            )}
           </section>
         ) : (
         <section className="studio-editor">
@@ -1379,7 +1713,8 @@ export function StudioPage() {
                   </details>
                   <label>阅读分钟<input type="number" min="1" max="120" value={draft.readMinutes} onChange={(event) => updateDraft({ readMinutes: Number(event.target.value) })} /></label>
                   <label>标签<input value={draft.tags[locale]} onChange={(event) => updateLocalized("tags", event.target.value)} placeholder="设计, 注意力, 写作" /></label>
-                  <label>系列<input value={draft.series[locale]} onChange={(event) => updateLocalized("series", event.target.value)} placeholder="可选" /></label>
+                  <label>系列<input list={`studio-series-${locale}`} value={draft.series[locale]} onChange={(event) => updateLocalized("series", event.target.value)} placeholder="可选，可从系列目录选择" /></label>
+                  <datalist id={`studio-series-${locale}`}>{state.series.map((series) => <option key={series.id} value={series.name[locale]}>{series.name[locale === "zh" ? "en" : "zh"]}</option>)}</datalist>
                   <label>封面替代文字<input value={draft.coverAlt[locale]} onChange={(event) => updateLocalized("coverAlt", event.target.value)} placeholder="准确描述图片内容" /></label>
                 </div>
                 <details className="studio-advanced">
