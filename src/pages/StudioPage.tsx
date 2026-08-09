@@ -7,15 +7,20 @@ import {
   Copy,
   Download,
   Eye,
+  ExternalLink,
   FileImage,
   FilePlus2,
+  Files,
+  FolderInput,
   ImagePlus,
+  ListFilter,
   LogOut,
   LoaderCircle,
   Moon,
   Package,
   PenLine,
   Plus,
+  Search,
   Smile,
   Sun,
   Tags,
@@ -27,7 +32,7 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ClipboardE
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { categories as defaultCategories, type Category } from "../categories";
-import { stories } from "../articles";
+import { stories, type Story } from "../articles";
 import { TransitionLink, useTheme } from "../components/AppProviders";
 import type { Locale } from "../content";
 import {
@@ -89,6 +94,21 @@ type BodyImageAsset = ImageAsset & {
 };
 
 type SaveStatus = "loading" | "saving" | "saved" | "local" | "error";
+type StudioView = "write" | "manage";
+type ArticleFilter = "all" | "published" | "draft" | "pending";
+
+type ManagedArticle = {
+  key: string;
+  status: Exclude<ArticleFilter, "all">;
+  draft?: StudioDraft;
+  story?: Story;
+  slug: string;
+  category: string;
+  date: string;
+  updatedAt: string;
+  title: LocalizedDraft;
+  summary: LocalizedDraft;
+};
 
 type BackupImageMeta = Omit<StoredImageAsset, "blob"> & { path: string };
 type BackupBodyImageMeta = BackupImageMeta & { alt: string };
@@ -143,6 +163,24 @@ function createDraft(category = defaultCategories[0]?.id ?? "notes"): StudioDraf
     body: { zh: "", en: "" },
     tags: { zh: "", en: "" },
     series: { zh: "", en: "" },
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function createDraftFromStory(story: Story): StudioDraft {
+  return {
+    id: crypto.randomUUID(),
+    slug: story.slug,
+    date: story.date,
+    category: story.categoryId,
+    readMinutes: Number.parseInt(story.readTime.en, 10) || 6,
+    cover: story.cover.src,
+    title: { ...story.title },
+    summary: { ...story.summary },
+    coverAlt: { ...story.cover.alt },
+    body: { ...story.body },
+    tags: { zh: story.tags.zh.join(", "), en: story.tags.en.join(", ") },
+    series: { zh: story.series.zh ?? "", en: story.series.en ?? "" },
     updatedAt: new Date().toISOString(),
   };
 }
@@ -408,6 +446,13 @@ export function StudioPage() {
   const [assetReloadVersion, setAssetReloadVersion] = useState(0);
   const [categoryForm, setCategoryForm] = useState<CategoryForm>(emptyCategoryForm);
   const [categoryStatus, setCategoryStatus] = useState("");
+  const [view, setView] = useState<StudioView>("write");
+  const [articleFilter, setArticleFilter] = useState<ArticleFilter>("all");
+  const [articleQuery, setArticleQuery] = useState("");
+  const [articleCategory, setArticleCategory] = useState("all");
+  const [selectedArticleKeys, setSelectedArticleKeys] = useState<Set<string>>(() => new Set());
+  const [moveCategory, setMoveCategory] = useState(defaultCategories[0]?.id ?? "notes");
+  const [managerStatus, setManagerStatus] = useState("");
   const bodyEditorRef = useRef<HTMLTextAreaElement>(null);
   const bodyImageInputRef = useRef<HTMLInputElement>(null);
   const bodyAssetsRef = useRef<BodyImageAsset[]>([]);
@@ -428,6 +473,66 @@ export function StudioPage() {
     published: stories.filter((story) => story.categoryId === category.id).length,
     drafts: state.drafts.filter((item) => item.category === category.id).length,
   }])), [state.categories, state.drafts]);
+  const managedArticles = useMemo<ManagedArticle[]>(() => {
+    const matchedDraftIds = new Set<string>();
+    const publishedArticles = stories.map((story): ManagedArticle => {
+      const localDraft = state.drafts.find((item) => item.slug === story.slug && !matchedDraftIds.has(item.id));
+      if (localDraft) matchedDraftIds.add(localDraft.id);
+      return {
+        key: localDraft ? `draft:${localDraft.id}` : `published:${story.slug}`,
+        status: localDraft ? "pending" : "published",
+        draft: localDraft,
+        story,
+        slug: story.slug,
+        category: localDraft?.category ?? story.categoryId,
+        date: localDraft?.date ?? story.date,
+        updatedAt: localDraft?.updatedAt ?? `${story.date}T00:00:00.000Z`,
+        title: {
+          zh: localDraft?.title.zh || story.title.zh,
+          en: localDraft?.title.en || story.title.en,
+        },
+        summary: {
+          zh: localDraft?.summary.zh || story.summary.zh,
+          en: localDraft?.summary.en || story.summary.en,
+        },
+      };
+    });
+    const localArticles = state.drafts
+      .filter((item) => !matchedDraftIds.has(item.id))
+      .map((item): ManagedArticle => ({
+        key: `draft:${item.id}`,
+        status: "draft",
+        draft: item,
+        slug: item.slug,
+        category: item.category,
+        date: item.date,
+        updatedAt: item.updatedAt,
+        title: { ...item.title },
+        summary: { ...item.summary },
+      }));
+    return [...publishedArticles, ...localArticles]
+      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+  }, [state.drafts]);
+  const visibleManagedArticles = useMemo(() => {
+    const query = articleQuery.trim().toLocaleLowerCase();
+    return managedArticles.filter((item) => {
+      if (articleFilter !== "all" && item.status !== articleFilter) return false;
+      if (articleCategory !== "all" && item.category !== articleCategory) return false;
+      if (!query) return true;
+      return [item.title.zh, item.title.en, item.summary.zh, item.summary.en, item.slug]
+        .some((value) => value.toLocaleLowerCase().includes(query));
+    });
+  }, [articleCategory, articleFilter, articleQuery, managedArticles]);
+  const selectedManagedArticles = managedArticles.filter((item) => selectedArticleKeys.has(item.key));
+  const selectedDraftCount = selectedManagedArticles.filter((item) => item.draft).length;
+  const activeMoveCategory = state.categories.some((category) => category.id === moveCategory)
+    ? moveCategory
+    : state.categories[0]?.id ?? "";
+  const articleCounts = useMemo(() => ({
+    published: managedArticles.filter((item) => item.status === "published").length,
+    draft: managedArticles.filter((item) => item.status === "draft").length,
+    pending: managedArticles.filter((item) => item.status === "pending").length,
+  }), [managedArticles]);
 
   bodyAssetsRef.current = bodyAssets;
 
@@ -549,6 +654,93 @@ export function StudioPage() {
       const next = createDraft(current.categories[0]?.id);
       return { ...current, drafts: [next, ...current.drafts], activeId: next.id };
     });
+    setView("write");
+    setPreview(false);
+  };
+
+  const openDraft = (draftId: string) => {
+    setState((current) => ({ ...current, activeId: draftId }));
+    setView("write");
+    setPreview(false);
+  };
+
+  const editPublishedStory = (story: Story) => {
+    setState((current) => {
+      const existing = current.drafts.find((item) => item.slug === story.slug);
+      if (existing) return { ...current, activeId: existing.id };
+      const next = createDraftFromStory(story);
+      return { ...current, drafts: [next, ...current.drafts], activeId: next.id };
+    });
+    setView("write");
+    setPreview(false);
+  };
+
+  const toggleArticleSelection = (key: string) => {
+    setSelectedArticleKeys((current) => {
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const allVisibleSelected = visibleManagedArticles.length > 0
+    && visibleManagedArticles.every((item) => selectedArticleKeys.has(item.key));
+
+  const toggleVisibleArticles = () => {
+    setSelectedArticleKeys((current) => {
+      const next = new Set(current);
+      visibleManagedArticles.forEach((item) => {
+        if (allVisibleSelected) next.delete(item.key);
+        else next.add(item.key);
+      });
+      return next;
+    });
+  };
+
+  const moveSelectedArticles = () => {
+    if (!selectedManagedArticles.length || !activeMoveCategory) return;
+    const articlesToMove = selectedManagedArticles.filter((item) => item.category !== activeMoveCategory);
+    if (!articlesToMove.length) {
+      setManagerStatus("所选文章已经在这个分类中。 ");
+      return;
+    }
+    const selectedDraftIds = new Set(articlesToMove.flatMap((item) => item.draft ? [item.draft.id] : []));
+    const publishedToImport = articlesToMove.flatMap((item) => !item.draft && item.story ? [item.story] : []);
+    const now = new Date().toISOString();
+    setState((current) => {
+      const nextDrafts = current.drafts.map((item) => selectedDraftIds.has(item.id)
+        ? { ...item, category: activeMoveCategory, updatedAt: now }
+        : item);
+      const existingSlugs = new Set(nextDrafts.map((item) => item.slug));
+      const imported = publishedToImport
+        .filter((story) => !existingSlugs.has(story.slug))
+        .map((story) => ({ ...createDraftFromStory(story), category: activeMoveCategory, updatedAt: now }));
+      return { ...current, drafts: [...imported, ...nextDrafts] };
+    });
+    const categoryName = state.categories.find((category) => category.id === activeMoveCategory)?.name.zh ?? activeMoveCategory;
+    setManagerStatus(`已将 ${articlesToMove.length} 篇文章移至“${categoryName}”。已发布文章已生成待更新稿，重新发布后线上生效。`);
+    setSelectedArticleKeys(new Set());
+  };
+
+  const deleteSelectedDrafts = () => {
+    const draftIds = selectedManagedArticles.flatMap((item) => item.draft ? [item.draft.id] : []);
+    if (!draftIds.length) return;
+    if (!window.confirm(`确定删除选中的 ${draftIds.length} 篇本地稿吗？已发布原文不会被删除。`)) return;
+    const deletedIds = new Set(draftIds);
+    setState((current) => {
+      const remaining = current.drafts.filter((item) => !deletedIds.has(item.id));
+      const nextDrafts = remaining.length ? remaining : [createDraft(current.categories[0]?.id)];
+      const activeId = deletedIds.has(current.activeId) ? nextDrafts[0].id : current.activeId;
+      return { ...current, drafts: nextDrafts, activeId };
+    });
+    if (storageReady) {
+      void persistOperation((async () => {
+        await Promise.all(draftIds.map((draftId) => deleteStudioAssets(draftId)));
+      })());
+    }
+    setManagerStatus(`已删除 ${draftIds.length} 篇本地稿；已发布原文保持不变。`);
+    setSelectedArticleKeys(new Set());
   };
 
   const deleteDraft = () => {
@@ -840,8 +1032,8 @@ export function StudioPage() {
       <header className="studio-topbar">
         <TransitionLink to="/zh" className="studio-back"><ArrowLeft aria-hidden="true" />返回博客</TransitionLink>
         <div className="studio-topbar-document">
-          <strong>{draft.title[locale] || "未命名草稿"}</strong>
-          <span>{locale === "zh" ? "中文" : "English"} · {wordCount} 字</span>
+          <strong>{view === "manage" ? "全部文章" : draft.title[locale] || "未命名草稿"}</strong>
+          <span>{view === "manage" ? `${managedArticles.length} 篇文章` : `${locale === "zh" ? "中文" : "English"} · ${wordCount} 字`}</span>
         </div>
         <div className="studio-topbar-actions">
           <span className={`studio-save-state is-${saveStatus}`} aria-live="polite">
@@ -852,12 +1044,18 @@ export function StudioPage() {
                 : <Check aria-hidden="true" />}
             {saveStatusLabel}
           </span>
-          <button type="button" className="studio-topbar-button" onClick={() => setPreview((value) => !value)}>
-            {preview ? <PenLine aria-hidden="true" /> : <Eye aria-hidden="true" />}<span>{preview ? "继续编辑" : "预览"}</span>
-          </button>
-          <button type="button" className="studio-topbar-button is-primary" disabled={!canPackage || packageStatus !== "idle"} onClick={() => void exportPublishPackage()} title={canPackage ? "下载完整发布包" : "请先补全一种语言的发布必填项"}>
-            {packageStatus === "packing" ? <LoaderCircle className="is-spinning" aria-hidden="true" /> : <Package aria-hidden="true" />}<span>发布包</span>
-          </button>
+          {view === "write" ? (
+            <>
+              <button type="button" className="studio-topbar-button" onClick={() => setPreview((value) => !value)}>
+                {preview ? <PenLine aria-hidden="true" /> : <Eye aria-hidden="true" />}<span>{preview ? "继续编辑" : "预览"}</span>
+              </button>
+              <button type="button" className="studio-topbar-button is-primary" disabled={!canPackage || packageStatus !== "idle"} onClick={() => void exportPublishPackage()} title={canPackage ? "下载完整发布包" : "请先补全一种语言的发布必填项"}>
+                {packageStatus === "packing" ? <LoaderCircle className="is-spinning" aria-hidden="true" /> : <Package aria-hidden="true" />}<span>发布包</span>
+              </button>
+            </>
+          ) : (
+            <button type="button" className="studio-topbar-button is-primary" onClick={addDraft}><FilePlus2 aria-hidden="true" /><span>新建文章</span></button>
+          )}
           <form className="studio-logout" action="/api/studio/logout" method="post">
             <button type="submit" className="studio-topbar-button" title="退出写作台"><LogOut aria-hidden="true" /><span>退出</span></button>
           </form>
@@ -872,6 +1070,10 @@ export function StudioPage() {
           <div className="studio-sidebar-head">
             <div><span>OMNI / JOURNAL</span><h1>写作台</h1></div>
           </div>
+          <nav className="studio-mode-switch" aria-label="写作台功能">
+            <button type="button" className={view === "write" ? "is-active" : ""} onClick={() => setView("write")}><PenLine aria-hidden="true" />写文章</button>
+            <button type="button" className={view === "manage" ? "is-active" : ""} onClick={() => setView("manage")}><Files aria-hidden="true" />文章管理</button>
+          </nav>
           <button type="button" className="studio-new-draft" onClick={addDraft}><FilePlus2 aria-hidden="true" />新建文章</button>
           <div className="studio-sidebar-label"><span>本地草稿</span><strong>{state.drafts.length}</strong></div>
           <div className="studio-drafts">
@@ -881,8 +1083,8 @@ export function StudioPage() {
                 type="button"
                 className={item.id === draft.id ? "is-active" : ""}
                 onClick={() => {
-                  if (item.id === draft.id) return;
-                  setState((current) => ({ ...current, activeId: item.id }));
+                  if (item.id === draft.id && view === "write") return;
+                  openDraft(item.id);
                 }}
               >
                 <span>{item.title.zh || item.title.en || "未命名草稿"}</span>
@@ -902,6 +1104,122 @@ export function StudioPage() {
           <p className="studio-local-note">草稿与图片保存在当前浏览器。建议定期下载完整备份。</p>
         </aside>
 
+        {view === "manage" ? (
+          <section className="studio-manager" aria-labelledby="studio-manager-title">
+            <header className="studio-manager-head">
+              <div>
+                <span>LIBRARY / {managedArticles.length} ARTICLES</span>
+                <h2 id="studio-manager-title">全部文章</h2>
+                <p>统一查看本地草稿与已发布文章，筛选后可批量移动到其他分类。</p>
+              </div>
+              <button type="button" className="studio-manager-create" onClick={addDraft}><FilePlus2 aria-hidden="true" />新建文章</button>
+            </header>
+
+            <div className="studio-manager-summary" aria-label="文章概览">
+              <div><span>线上文章</span><strong>{stories.length}</strong><small>当前博客可见</small></div>
+              <div><span>本地草稿</span><strong>{state.drafts.length}</strong><small>保存在此浏览器</small></div>
+              <div><span>待更新</span><strong>{articleCounts.pending}</strong><small>与线上文章同 slug</small></div>
+            </div>
+
+            <section className="studio-library">
+              <div className="studio-library-toolbar">
+                <label className="studio-library-search">
+                  <Search aria-hidden="true" />
+                  <span className="sr-only">搜索文章</span>
+                  <input value={articleQuery} onChange={(event) => setArticleQuery(event.target.value)} placeholder="搜索标题、摘要或 slug" />
+                </label>
+                <label className="studio-library-category">
+                  <ListFilter aria-hidden="true" />
+                  <span className="sr-only">按分类筛选</span>
+                  <select value={articleCategory} onChange={(event) => setArticleCategory(event.target.value)}>
+                    <option value="all">全部分类</option>
+                    {state.categories.map((category) => <option key={category.id} value={category.id}>{category.name.zh} / {category.name.en}</option>)}
+                  </select>
+                  <ChevronDown aria-hidden="true" />
+                </label>
+              </div>
+
+              <div className="studio-library-tabs" role="tablist" aria-label="文章状态">
+                {([
+                  ["all", "全部", managedArticles.length],
+                  ["published", "仅已发布", articleCounts.published],
+                  ["draft", "仅草稿", articleCounts.draft],
+                  ["pending", "待更新", articleCounts.pending],
+                ] as const).map(([filter, label, count]) => (
+                  <button key={filter} type="button" role="tab" aria-selected={articleFilter === filter} className={articleFilter === filter ? "is-active" : ""} onClick={() => setArticleFilter(filter)}>
+                    {label}<span>{count}</span>
+                  </button>
+                ))}
+              </div>
+
+              <div className={`studio-library-selection${selectedManagedArticles.length ? " has-selection" : ""}`}>
+                <div>
+                  <button type="button" onClick={toggleVisibleArticles} disabled={!visibleManagedArticles.length}>{allVisibleSelected ? "取消全选" : "全选当前结果"}</button>
+                  <span>显示 {visibleManagedArticles.length} 篇{selectedManagedArticles.length ? ` · 已选 ${selectedManagedArticles.length} 篇` : ""}</span>
+                </div>
+                {selectedManagedArticles.length ? (
+                  <div className="studio-library-bulk-actions">
+                    <label>
+                      <span className="sr-only">目标分类</span>
+                      <select value={activeMoveCategory} onChange={(event) => setMoveCategory(event.target.value)}>
+                        {state.categories.map((category) => <option key={category.id} value={category.id}>移至：{category.name.zh}</option>)}
+                      </select>
+                      <ChevronDown aria-hidden="true" />
+                    </label>
+                    <button type="button" className="is-primary" onClick={moveSelectedArticles}><FolderInput aria-hidden="true" />移动</button>
+                    <button type="button" disabled={!selectedDraftCount} title={selectedDraftCount ? "删除选中的本地稿" : "已发布原文不能在浏览器中直接删除"} onClick={deleteSelectedDrafts}><Trash2 aria-hidden="true" />删除本地稿</button>
+                  </div>
+                ) : null}
+              </div>
+
+              {visibleManagedArticles.length ? (
+                <div className="studio-article-table">
+                  <div className="studio-article-row studio-article-table-head" aria-hidden="true">
+                    <span />
+                    <span>文章</span>
+                    <span>分类</span>
+                    <span>日期</span>
+                    <span>操作</span>
+                  </div>
+                  {visibleManagedArticles.map((item) => {
+                    const category = state.categories.find((candidate) => candidate.id === item.category);
+                    const languages = (["zh", "en"] as Locale[]).filter((candidate) => item.draft
+                      ? Boolean(item.draft.title[candidate] && item.draft.body[candidate])
+                      : item.story?.availableLocales.includes(candidate));
+                    const statusLabel = { published: "已发布", draft: "草稿", pending: "待更新" }[item.status];
+                    return (
+                      <article className={`studio-article-row is-${item.status}`} key={item.key}>
+                        <label className="studio-article-check">
+                          <input type="checkbox" checked={selectedArticleKeys.has(item.key)} onChange={() => toggleArticleSelection(item.key)} />
+                          <span className="sr-only">选择 {item.title.zh || item.title.en || "未命名草稿"}</span>
+                        </label>
+                        <div className="studio-article-main">
+                          <div><span className={`studio-article-status is-${item.status}`}>{statusLabel}</span>{languages.length ? <small>{languages.map((candidate) => candidate.toUpperCase()).join(" + ")}</small> : <small>内容未完成</small>}</div>
+                          <h3>{item.title.zh || item.title.en || "未命名草稿"}</h3>
+                          <p>{item.summary.zh || item.summary.en || "尚未填写文章摘要。"}</p>
+                          <code>{item.slug || "尚未设置 slug"}</code>
+                        </div>
+                        <div className="studio-article-category" data-label="分类"><strong>{category?.name.zh ?? item.category}</strong><span>{category?.name.en ?? item.category}</span></div>
+                        <time className="studio-article-date" dateTime={item.date} data-label="日期">{item.date}</time>
+                        <div className="studio-article-actions">
+                          {item.draft
+                            ? <button type="button" onClick={() => openDraft(item.draft!.id)}><PenLine aria-hidden="true" />编辑</button>
+                            : <button type="button" onClick={() => editPublishedStory(item.story!)}><FilePlus2 aria-hidden="true" />建立编辑稿</button>}
+                          {item.story ? <a href={`/zh/stories/${item.story.slug}`} target="_blank" rel="noreferrer"><ExternalLink aria-hidden="true" />查看</a> : null}
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="studio-library-empty"><Files aria-hidden="true" /><strong>没有符合条件的文章</strong><span>换一个关键词、分类或状态试试。</span></div>
+              )}
+
+              <p className="studio-manager-status" aria-live="polite">{managerStatus}</p>
+              <p className="studio-manager-note"><CircleAlert aria-hidden="true" />移动已发布文章时会建立待更新稿；下载发布包并重新部署后，线上分类才会变化。</p>
+            </section>
+          </section>
+        ) : (
         <section className="studio-editor">
           <div className="studio-editor-head">
             <div>
@@ -1085,6 +1403,7 @@ export function StudioPage() {
             </aside>
           </div>
         </section>
+        )}
       </div>
     </main>
   );
