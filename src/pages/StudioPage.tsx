@@ -4,7 +4,6 @@ import {
   Check,
   CircleAlert,
   Download,
-  Eye,
   FilePlus2,
   Files,
   LoaderCircle,
@@ -32,8 +31,6 @@ export function StudioPage() {
     wordCount,
     saveStatus,
     saveStatusLabel,
-    setPreview,
-    preview,
     canPackage,
     packageStatus,
     exportPublishPackage,
@@ -63,14 +60,9 @@ export function StudioPage() {
             {saveStatusLabel}
           </span>
           {view === "write" ? (
-            <>
-              <button type="button" className="studio-topbar-button" onClick={() => setPreview((value) => !value)}>
-                {preview ? <PenLine aria-hidden="true" /> : <Eye aria-hidden="true" />}<span>{preview ? "继续编辑" : "预览"}</span>
-              </button>
-              <button type="button" className="studio-topbar-button is-primary" disabled={!canPackage || packageStatus !== "idle"} onClick={() => void exportPublishPackage()} title={canPackage ? "下载完整发布包" : "请先补全一种语言的发布必填项"}>
-                {packageStatus === "packing" ? <LoaderCircle className="is-spinning" aria-hidden="true" /> : <Package aria-hidden="true" />}<span>发布包</span>
-              </button>
-            </>
+            <button type="button" className="studio-topbar-button is-primary" disabled={!canPackage || packageStatus !== "idle"} onClick={() => void exportPublishPackage()} title={canPackage ? "下载完整发布包" : "请先补全一种语言的发布必填项"}>
+              {packageStatus === "packing" ? <LoaderCircle className="is-spinning" aria-hidden="true" /> : <Package aria-hidden="true" />}<span>发布包</span>
+            </button>
           ) : (
             <button type="button" className="studio-topbar-button is-primary" onClick={addDraft}><FilePlus2 aria-hidden="true" /><span>新建文章</span></button>
           )}

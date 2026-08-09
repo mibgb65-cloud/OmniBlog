@@ -38,7 +38,6 @@ export function useStudioPage() {
   const { theme, toggleTheme } = useTheme();
   const [state, setState] = useState<StudioState>(loadStudioState);
   const [locale, setLocale] = useState<Locale>("zh");
-  const [preview, setPreview] = useState(false);
   const [coverAssets, setCoverAssets] = useState<ImageAsset[]>([]);
   const [bodyAssets, setBodyAssets] = useState<BodyImageAsset[]>([]);
   const [emojiOpen, setEmojiOpen] = useState(false);
@@ -85,7 +84,7 @@ export function useStudioPage() {
     }
   };
 
-  const management = useStudioManagement({ state, setState, setPreview, storageReady, persistOperation });
+  const management = useStudioManagement({ state, setState, storageReady, persistOperation });
 
   useEffect(() => {
     let cancelled = false;
@@ -184,6 +183,22 @@ export function useStudioPage() {
     updateDraft({ [field]: { ...draft[field], [locale]: value } });
   };
 
+  const updateSlug = (value: string) => {
+    const nextSlug = value.toLocaleLowerCase().replace(/[^a-z0-9-]/g, "-");
+    if (nextSlug === draft.slug) return;
+    const rewriteArticlePath = (current: string) => draft.slug && nextSlug
+      ? current.replaceAll(`/articles/${draft.slug}/`, `/articles/${nextSlug}/`)
+      : current;
+    updateDraft({
+      slug: nextSlug,
+      cover: rewriteArticlePath(draft.cover),
+      body: {
+        zh: rewriteArticlePath(draft.body.zh),
+        en: rewriteArticlePath(draft.body.en),
+      },
+    });
+  };
+
   const deleteDraft = () => {
     if (!window.confirm("确定删除这个本地草稿吗？此操作无法撤销。")) return;
     const deletedDraftId = draft.id;
@@ -248,14 +263,22 @@ export function useStudioPage() {
     });
   };
 
-  const processBodyFiles = async (files: File[], position = caretRef.current) => {
+  const processBodyFiles = async (
+    files: File[],
+    position = caretRef.current,
+    source: "select" | "paste" | "drop" = "select",
+  ) => {
     const imageFiles = files.filter((file) => file.type.startsWith("image/"));
     if (!imageFiles.length) return;
-    if (!draft.slug) {
-      setAssetStatus("请先填写文章 slug，再选择正文图片。 ");
-      return;
-    }
-    setAssetStatus(`正在处理 ${imageFiles.length} 张正文图片…`);
+    const titleSlug = (draft.title.en || draft.title.zh)
+      .toLocaleLowerCase()
+      .normalize("NFKD")
+      .replace(/[^a-z0-9-]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+    const articleSlug = draft.slug || titleSlug || `draft-${draft.id.slice(0, 8)}`;
+    if (!draft.slug) updateSlug(articleSlug);
+    const progressLabel = source === "paste" ? "正在粘贴" : source === "drop" ? "正在插入" : "正在处理";
+    setAssetStatus(`${progressLabel} ${imageFiles.length} 张正文图片…`);
     try {
       const usedNames = new Set(["cover.webp", "thumbnail.webp", "og.webp", ...bodyAssets.map((asset) => asset.filename)]);
       const nextAssets: BodyImageAsset[] = [];
@@ -271,10 +294,12 @@ export function useStudioPage() {
       }
       setBodyAssets((current) => [...current, ...nextAssets]);
       const markdown = nextAssets
-        .map((asset) => `![${asset.alt}](${imageBase}/articles/${draft.slug}/${asset.filename})`)
+        .map((asset) => `![${asset.alt}](${imageBase}/articles/${articleSlug}/${asset.filename})`)
         .join("\n\n");
       insertBodyText(`\n\n${markdown}\n\n`, position);
-      setAssetStatus(`已插入 ${nextAssets.length} 张 WebP 图片，可直接预览。 `);
+      const actionLabel = source === "paste" ? "已从剪贴板粘贴" : source === "drop" ? "已拖入" : "已插入";
+      const slugLabel = draft.slug ? "" : `，并自动创建 slug“${articleSlug}”`;
+      setAssetStatus(`${actionLabel} ${nextAssets.length} 张 WebP 图片${slugLabel}。`);
     } catch {
       setAssetStatus("图片处理失败，请换一张图片重试。 ");
     }
@@ -294,7 +319,7 @@ export function useStudioPage() {
     if (!files.length) return;
     event.preventDefault();
     const position = { start: event.currentTarget.selectionStart, end: event.currentTarget.selectionEnd };
-    void processBodyFiles(files, position);
+    void processBodyFiles(files, position, "paste");
   };
 
   const handleBodyDrop = (event: DragEvent<HTMLTextAreaElement>) => {
@@ -303,7 +328,7 @@ export function useStudioPage() {
     if (!files.length) return;
     event.preventDefault();
     const position = { start: event.currentTarget.selectionStart, end: event.currentTarget.selectionEnd };
-    void processBodyFiles(files, position);
+    void processBodyFiles(files, position, "drop");
   };
 
   const bodySnippet = (asset: BodyImageAsset) => `![${asset.alt}](${imageBase}/articles/${draft.slug}/${asset.filename})`;
@@ -440,8 +465,6 @@ export function useStudioPage() {
     state,
     locale,
     setLocale,
-    preview,
-    setPreview,
     coverAssets,
     bodyAssets,
     emojiOpen,
@@ -461,6 +484,7 @@ export function useStudioPage() {
     canPackage,
     updateDraft,
     updateLocalized,
+    updateSlug,
     deleteDraft,
     processCover,
     rememberCaret,

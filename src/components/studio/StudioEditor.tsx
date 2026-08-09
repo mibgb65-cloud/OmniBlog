@@ -3,6 +3,7 @@ import {
   ChevronDown,
   Copy,
   Download,
+  Eye,
   FileImage,
   ImagePlus,
   LoaderCircle,
@@ -28,7 +29,6 @@ export function StudioEditor({ studio }: StudioEditorProps) {
     deleteDraft,
     setLocale,
     updateLocalized,
-    preview,
     bodyAssets,
     isDraggingImage,
     rememberCaret,
@@ -58,12 +58,14 @@ export function StudioEditor({ studio }: StudioEditorProps) {
     setCategoryForm,
     categoryStatus,
     updateDraft,
+    updateSlug,
     canPackage,
     packageStatus,
     exportPublishPackage,
     canExport,
     completedLocales,
   } = studio;
+  const activeCategory = state.categories.find((category) => category.id === draft.category);
 
   return (
         <section className="studio-editor">
@@ -92,55 +94,40 @@ export function StudioEditor({ studio }: StudioEditorProps) {
                   <label className="studio-summary-field">摘要<textarea rows={2} value={draft.summary[locale]} onChange={(event) => updateLocalized("summary", event.target.value)} placeholder="用一两句话说明这篇文章为什么值得读。" /></label>
                   <div className="studio-body-field">
                     <div className="studio-body-label"><label htmlFor="studio-body-editor">正文</label><small>{wordCount} 字</small></div>
-                    {preview ? (
-                      <div className="studio-markdown-preview">
-                        <Markdown
-                          remarkPlugins={[remarkGfm]}
-                          components={{
-                            img: ({ src, alt = "", ...props }) => {
-                              const localAsset = bodyAssets.find((asset) => src?.endsWith(`/${asset.filename}`));
-                              return <img {...props} src={localAsset?.url ?? src} alt={alt} loading="lazy" />;
-                            },
-                          }}
-                        >
-                          {draft.body[locale] || "在这里预览 Markdown 正文。"}
-                        </Markdown>
-                      </div>
-                    ) : (
-                      <div className={`studio-composer${isDraggingImage ? " is-dragging" : ""}`}>
-                        <div className="studio-composer-toolbar" aria-label="正文插入工具">
-                          <button type="button" onClick={() => { rememberCaret(); bodyImageInputRef.current?.click(); }}><ImagePlus aria-hidden="true" />图片</button>
-                          <div className="studio-emoji-control">
-                            <button type="button" aria-expanded={emojiOpen} aria-controls="studio-emoji-picker" onClick={() => { rememberCaret(); setEmojiOpen((value) => !value); }}><Smile aria-hidden="true" />表情</button>
-                            {emojiOpen ? (
-                              <div id="studio-emoji-picker" className="studio-emoji-picker" role="dialog" aria-label="选择表情" onKeyDown={(event) => { if (event.key === "Escape") setEmojiOpen(false); }}>
-                                <span>常用表情</span>
-                                <div>{emojis.map(([emoji, label]) => <button key={emoji} type="button" aria-label={label} title={label} onClick={() => insertBodyText(emoji)}>{emoji}</button>)}</div>
-                              </div>
-                            ) : null}
-                          </div>
-                          <span>支持粘贴或拖入图片</span>
-                          <input ref={bodyImageInputRef} className="sr-only" type="file" accept="image/*" multiple tabIndex={-1} onChange={processBodyImage} />
+                    <div className={`studio-composer${isDraggingImage ? " is-dragging" : ""}`}>
+                      <div className="studio-composer-toolbar" aria-label="正文插入工具">
+                        <button type="button" onClick={() => { rememberCaret(); bodyImageInputRef.current?.click(); }}><ImagePlus aria-hidden="true" />图片</button>
+                        <div className="studio-emoji-control">
+                          <button type="button" aria-expanded={emojiOpen} aria-controls="studio-emoji-picker" onClick={() => { rememberCaret(); setEmojiOpen((value) => !value); }}><Smile aria-hidden="true" />表情</button>
+                          {emojiOpen ? (
+                            <div id="studio-emoji-picker" className="studio-emoji-picker" role="dialog" aria-label="选择表情" onKeyDown={(event) => { if (event.key === "Escape") setEmojiOpen(false); }}>
+                              <span>常用表情</span>
+                              <div>{emojis.map(([emoji, label]) => <button key={emoji} type="button" aria-label={label} title={label} onClick={() => insertBodyText(emoji)}>{emoji}</button>)}</div>
+                            </div>
+                          ) : null}
                         </div>
-                        <textarea
-                          id="studio-body-editor"
-                          ref={bodyEditorRef}
-                          rows={24}
-                          value={draft.body[locale]}
-                          onChange={(event) => { updateLocalized("body", event.target.value); caretRef.current = { start: event.target.selectionStart, end: event.target.selectionEnd }; }}
-                          onSelect={rememberCaret}
-                          onKeyUp={rememberCaret}
-                          onPaste={handleBodyPaste}
-                          onKeyDown={(event) => { if (event.key === "Escape") setEmojiOpen(false); }}
-                          onDragEnter={(event) => { if (event.dataTransfer.types.includes("Files")) setIsDraggingImage(true); }}
-                          onDragOver={(event) => { if (event.dataTransfer.types.includes("Files")) event.preventDefault(); }}
-                          onDragLeave={() => setIsDraggingImage(false)}
-                          onDrop={handleBodyDrop}
-                          placeholder={"从这里开始写作…\n\n## 第一个小标题\n\n继续写下去。"}
-                        />
-                        {isDraggingImage ? <div className="studio-drop-overlay"><ImagePlus aria-hidden="true" /><strong>松开以插入图片</strong></div> : null}
+                        <span><kbd>Ctrl/⌘ V</kbd> 粘贴剪贴板图片</span>
+                        <input ref={bodyImageInputRef} className="sr-only" type="file" accept="image/*" multiple tabIndex={-1} onChange={processBodyImage} />
                       </div>
-                    )}
+                      <textarea
+                        id="studio-body-editor"
+                        ref={bodyEditorRef}
+                        rows={24}
+                        value={draft.body[locale]}
+                        onChange={(event) => { updateLocalized("body", event.target.value); caretRef.current = { start: event.target.selectionStart, end: event.target.selectionEnd }; }}
+                        onSelect={rememberCaret}
+                        onKeyUp={rememberCaret}
+                        onPaste={handleBodyPaste}
+                        onKeyDown={(event) => { if (event.key === "Escape") setEmojiOpen(false); }}
+                        onDragEnter={(event) => { if (event.dataTransfer.types.includes("Files")) setIsDraggingImage(true); }}
+                        onDragOver={(event) => { if (event.dataTransfer.types.includes("Files")) event.preventDefault(); }}
+                        onDragLeave={() => setIsDraggingImage(false)}
+                        onDrop={handleBodyDrop}
+                        placeholder={"从这里开始写作…\n\n## 第一个小标题\n\n继续写下去。"}
+                      />
+                      {assetStatus ? <p className="studio-composer-feedback" aria-live="polite">{assetStatus}</p> : null}
+                      {isDraggingImage ? <div className="studio-drop-overlay"><ImagePlus aria-hidden="true" /><strong>松开以插入图片</strong></div> : null}
+                    </div>
                   </div>
                 </div>
               </section>
@@ -178,10 +165,37 @@ export function StudioEditor({ studio }: StudioEditorProps) {
             </div>
 
             <aside className="studio-inspector" aria-label="发布设置">
+              <section className="studio-panel studio-live-preview" aria-labelledby="studio-preview-title">
+                <div className="studio-live-preview-head">
+                  <div><span>PREVIEW</span><h3 id="studio-preview-title"><Eye aria-hidden="true" />实时预览</h3></div>
+                  <span className="studio-live-indicator"><i aria-hidden="true" />同步中</span>
+                </div>
+                <article className="studio-preview-document">
+                  <header>
+                    <span>{activeCategory?.name[locale] ?? draft.category}</span>
+                    <h4>{draft.title[locale] || "未命名文章"}</h4>
+                    <p>{draft.summary[locale] || "摘要会实时显示在这里。"}</p>
+                  </header>
+                  <div className="studio-markdown-preview">
+                    <Markdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        img: ({ src, alt = "", ...props }) => {
+                          const localAsset = bodyAssets.find((asset) => src?.endsWith(`/${asset.filename}`));
+                          return <img {...props} src={localAsset?.url ?? src} alt={alt} />;
+                        },
+                      }}
+                    >
+                      {draft.body[locale] || "正文会随着输入实时呈现。"}
+                    </Markdown>
+                  </div>
+                </article>
+              </section>
+
               <section className="studio-panel studio-publish-panel" aria-labelledby="studio-meta-title">
                 <div className="studio-panel-title"><span>SETTINGS</span><h3 id="studio-meta-title">发布设置</h3></div>
                 <div className="studio-meta-grid">
-                  <label>Slug<input value={draft.slug} onChange={(event) => updateDraft({ slug: event.target.value.toLocaleLowerCase().replace(/[^a-z0-9-]/g, "-") })} placeholder="my-new-story" /></label>
+                  <label>Slug<input value={draft.slug} onChange={(event) => updateSlug(event.target.value)} placeholder="my-new-story" /></label>
                   <label>发布日期<input type="date" value={draft.date} onChange={(event) => updateDraft({ date: event.target.value })} /></label>
                   <label>分类<span className="studio-select"><select value={draft.category} onChange={(event) => updateDraft({ category: event.target.value })}>{state.categories.map((category) => <option key={category.id} value={category.id}>{category.name.zh} / {category.name.en}</option>)}</select><ChevronDown aria-hidden="true" /></span></label>
                   <details className="studio-category-manager">

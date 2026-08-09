@@ -22,12 +22,11 @@ import {
 type ManagementOptions = {
   state: StudioState;
   setState: Dispatch<SetStateAction<StudioState>>;
-  setPreview: Dispatch<SetStateAction<boolean>>;
   storageReady: boolean;
   persistOperation: (operation: Promise<void>) => Promise<void>;
 };
 
-export function useStudioManagement({ state, setState, setPreview, storageReady, persistOperation }: ManagementOptions) {
+export function useStudioManagement({ state, setState, storageReady, persistOperation }: ManagementOptions) {
   const [categoryForm, setCategoryForm] = useState<CategoryForm>(emptyCategoryForm);
   const [categoryStatus, setCategoryStatus] = useState("");
   const [view, setView] = useState<StudioView>("write");
@@ -142,13 +141,11 @@ export function useStudioManagement({ state, setState, setPreview, storageReady,
       return { ...current, drafts: [next, ...current.drafts], activeId: next.id };
     });
     setView("write");
-    setPreview(false);
   };
 
   const openDraft = (draftId: string) => {
     setState((current) => ({ ...current, activeId: draftId }));
     setView("write");
-    setPreview(false);
   };
 
   const editPublishedStory = (story: Story) => {
@@ -159,7 +156,6 @@ export function useStudioManagement({ state, setState, setPreview, storageReady,
       return { ...current, drafts: [next, ...current.drafts], activeId: next.id };
     });
     setView("write");
-    setPreview(false);
   };
 
   const toggleArticleSelection = (key: string) => {
