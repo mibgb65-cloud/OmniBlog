@@ -1,3 +1,12 @@
+@font-face {
+  font-family: "Omni Display Serif";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("data:font/woff2;base64,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") format("woff2");
+  unicode-range: U+20, U+41, U+49-4A, U+4C-4F, U+52, U+55, U+4E07, U+5FD7, U+8C61;
+}
+
 :root {
   color-scheme: light;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
@@ -677,10 +686,11 @@ main {
 
 .hero-title {
   margin: 38px 0 0;
+  font-family: "Omni Display Serif", "Noto Serif SC", "Songti SC", STSong, serif;
   font-size: clamp(60px, 7vw, 108px);
   font-weight: 700;
-  letter-spacing: -0.067em;
-  line-height: 0.89;
+  letter-spacing: -0.045em;
+  line-height: 0.94;
   white-space: nowrap;
 }
 
