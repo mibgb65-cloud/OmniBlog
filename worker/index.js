@@ -5,6 +5,7 @@ const json = (data, status = 200) => new Response(JSON.stringify(data), {
 
 const studioCookie = "omniblog_studio";
 const studioSessionSeconds = 12 * 60 * 60;
+const studioCsrfSeconds = 10 * 60;
 const encoder = new TextEncoder();
 
 function base64UrlEncode(value) {
@@ -50,6 +51,16 @@ async function createStudioSession(secret) {
   return `${payload}.${await signSession(payload, secret)}`;
 }
 
+async function createStudioCsrf(secret) {
+  const payload = base64UrlEncode(JSON.stringify({
+    version: 1,
+    purpose: "studio-login",
+    expires: Math.floor(Date.now() / 1000) + studioCsrfSeconds,
+    nonce: crypto.randomUUID(),
+  }));
+  return `${payload}.${await signSession(payload, secret)}`;
+}
+
 async function verifyStudioSession(value, secret) {
   if (!value || !secret) return false;
   const [payload, signature, extra] = value.split(".");
@@ -59,6 +70,23 @@ async function verifyStudioSession(value, secret) {
   try {
     const session = JSON.parse(new TextDecoder().decode(base64UrlDecode(payload)));
     return session.version === 1 && Number.isFinite(session.expires) && session.expires > Math.floor(Date.now() / 1000);
+  } catch {
+    return false;
+  }
+}
+
+async function verifyStudioCsrf(value, secret) {
+  if (!value || !secret) return false;
+  const [payload, signature, extra] = value.split(".");
+  if (!payload || !signature || extra) return false;
+  const expectedSignature = await signSession(payload, secret);
+  if (!constantTimeEqual(signature, expectedSignature)) return false;
+  try {
+    const token = JSON.parse(new TextDecoder().decode(base64UrlDecode(payload)));
+    return token.version === 1
+      && token.purpose === "studio-login"
+      && Number.isFinite(token.expires)
+      && token.expires > Math.floor(Date.now() / 1000);
   } catch {
     return false;
   }
@@ -81,7 +109,8 @@ function isSameOrigin(request) {
   return !origin || origin === new URL(request.url).origin;
 }
 
-function studioLoginPage(message = "", status = 401) {
+async function studioLoginPage(env, message = "", status = 401) {
+  const csrfToken = env.STUDIO_TOKEN ? await createStudioCsrf(env.STUDIO_TOKEN) : "";
   const feedback = message ? `<p class="feedback" role="alert">${message}</p>` : "";
   const html = `<!doctype html>
 <html lang="zh-CN">
@@ -112,6 +141,7 @@ function studioLoginPage(message = "", status = 401) {
     <p>这是私有编辑区域。请输入部署时配置的 Studio Token。</p>
     ${feedback}
     <form action="/api/studio/login" method="post">
+      <input type="hidden" name="csrf" value="${csrfToken}" />
       <label>Studio Token<input type="password" name="token" autocomplete="current-password" maxlength="512" required autofocus /></label>
       <button type="submit">验证并进入</button>
     </form>
@@ -137,17 +167,20 @@ async function isStudioAuthenticated(request, env) {
 }
 
 async function loginStudio(request, env) {
-  if (!env.STUDIO_TOKEN) return studioLoginPage("服务器尚未配置 STUDIO_TOKEN。", 503);
-  if (!isSameOrigin(request)) return json({ error: "Cross-site requests are not allowed." }, 403);
+  if (!env.STUDIO_TOKEN) return studioLoginPage(env, "服务器尚未配置 STUDIO_TOKEN。", 503);
   let form;
   try {
     form = await request.formData();
   } catch {
-    return studioLoginPage("登录请求无效，请重试。", 400);
+    return studioLoginPage(env, "登录请求无效，请重试。", 400);
+  }
+  const csrfToken = form.get("csrf");
+  if (typeof csrfToken !== "string" || !await verifyStudioCsrf(csrfToken, env.STUDIO_TOKEN)) {
+    return studioLoginPage(env, "登录页面已过期，请刷新后重试。", 403);
   }
   const token = form.get("token");
   if (typeof token !== "string" || token.length > 512 || !await secureEqual(token, env.STUDIO_TOKEN)) {
-    return studioLoginPage("Token 不正确，请重新输入。", 401);
+    return studioLoginPage(env, "Token 不正确，请重新输入。", 401);
   }
   const session = await createStudioSession(env.STUDIO_TOKEN);
   return new Response(null, {
@@ -264,8 +297,8 @@ export default {
     if (url.pathname === "/api/studio/logout" && request.method === "POST") return logoutStudio(request);
     if (url.pathname === "/studio" || url.pathname.startsWith("/studio/")) {
       if (request.method !== "GET" && request.method !== "HEAD") return json({ error: "Method not allowed." }, 405);
-      if (!env.STUDIO_TOKEN) return studioLoginPage("服务器尚未配置 STUDIO_TOKEN。", 503);
-      if (!await isStudioAuthenticated(request, env)) return studioLoginPage();
+      if (!env.STUDIO_TOKEN) return studioLoginPage(env, "服务器尚未配置 STUDIO_TOKEN。", 503);
+      if (!await isStudioAuthenticated(request, env)) return studioLoginPage(env);
       const asset = await env.ASSETS.fetch(request);
       const headers = new Headers(asset.headers);
       headers.set("cache-control", "private, no-store");

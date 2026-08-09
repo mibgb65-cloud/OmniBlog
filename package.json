@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "node scripts/generate-site.mjs && vite",
+    "test": "node --test worker/*.test.js",
     "build": "node scripts/generate-site.mjs && tsc --noEmit && vite build && node scripts/generate-site.mjs --static",
     "preview": "vite preview",
     "cf:dev": "npm run build && wrangler dev",
