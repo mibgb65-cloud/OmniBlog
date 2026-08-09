@@ -1,0 +1,42 @@
+[
+  {
+    "id": "design",
+    "name": { "zh": "设计", "en": "Design" },
+    "description": {
+      "zh": "关于界面、产品与视觉秩序的观察。",
+      "en": "Observations on interfaces, products, and visual order."
+    }
+  },
+  {
+    "id": "editorial",
+    "name": { "zh": "编辑", "en": "Editorial" },
+    "description": {
+      "zh": "关于写作、内容结构与出版节奏的笔记。",
+      "en": "Notes on writing, content structure, and publishing rhythm."
+    }
+  },
+  {
+    "id": "culture",
+    "name": { "zh": "文化", "en": "Culture" },
+    "description": {
+      "zh": "观察技术、媒介与日常生活如何彼此塑造。",
+      "en": "How technology, media, and everyday life shape one another."
+    }
+  },
+  {
+    "id": "technology",
+    "name": { "zh": "技术", "en": "Technology" },
+    "description": {
+      "zh": "关于软件、工具与技术边界的长期思考。",
+      "en": "Long-term thinking on software, tools, and technological boundaries."
+    }
+  },
+  {
+    "id": "notes",
+    "name": { "zh": "笔记", "en": "Notes" },
+    "description": {
+      "zh": "尚未长成文章，但值得留下的片段。",
+      "en": "Fragments worth keeping before they become full stories."
+    }
+  }
+]

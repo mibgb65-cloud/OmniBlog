@@ -1,0 +1,13 @@
+{
+  "siteUrl": "https://example.com",
+  "title": "Omni Journal",
+  "description": {
+    "zh": "关于设计、技术与日常的独立笔记。",
+    "en": "Independent notes on design, technology, and daily life."
+  },
+  "author": "Omni Editorial",
+  "email": "hello@example.com",
+  "analytics": {
+    "cloudflareToken": ""
+  }
+}

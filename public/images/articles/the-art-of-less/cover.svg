@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" role="img">
+  <defs>
+    <linearGradient id="paper" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#ded8cf"/><stop offset="1" stop-color="#afa69b"/></linearGradient>
+    <radialGradient id="sphere" cx="35%" cy="30%"><stop stop-color="#5a5753"/><stop offset=".45" stop-color="#262523"/><stop offset="1" stop-color="#080808"/></radialGradient>
+  </defs>
+  <rect width="1600" height="1000" fill="url(#paper)"/>
+  <circle cx="920" cy="485" r="290" fill="url(#sphere)"/>
+  <g fill="none" stroke="#f2eee8" stroke-width="3" opacity=".72">
+    <ellipse cx="800" cy="500" rx="650" ry="230" transform="rotate(-16 800 500)"/>
+    <ellipse cx="800" cy="500" rx="540" ry="155" transform="rotate(-16 800 500)"/>
+  </g>
+  <path d="M0 810c371-67 535 37 838-28 305-65 503-204 762-213v431H0Z" fill="#81786f" opacity=".5"/>
+  <circle cx="355" cy="325" r="14" fill="#1d1d1f"/>
+</svg>

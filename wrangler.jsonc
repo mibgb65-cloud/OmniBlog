@@ -1,0 +1,22 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "omniblog",
+  "main": "./worker/index.js",
+  "compatibility_date": "2026-08-08",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*", "/media/*", "/studio", "/studio/*"],
+    "not_found_handling": "single-page-application",
+    "html_handling": "auto-trailing-slash"
+  },
+  "d1_databases": [
+    { "binding": "DB", "database_name": "omniblog-subscribers" }
+  ],
+  "r2_buckets": [
+    { "binding": "MEDIA", "bucket_name": "omniblog-media" }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}

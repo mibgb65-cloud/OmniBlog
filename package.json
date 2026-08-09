@@ -1,0 +1,49 @@
+{
+  "name": "omniblog",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/generate-site.mjs && vite",
+    "build": "node scripts/generate-site.mjs && tsc --noEmit && vite build && node scripts/generate-site.mjs --static",
+    "preview": "vite preview",
+    "cf:dev": "npm run build && wrangler dev",
+    "deploy": "npm run build && wrangler deploy"
+  },
+  "cloudflare": {
+    "bindings": {
+      "STUDIO_TOKEN": {
+        "description": "写作台登录密码。请生成至少 32 位的独立随机值，不要使用示例值。"
+      },
+      "ADMIN_TOKEN": {
+        "description": "可选：供命令行工具上传图片使用，必须与 STUDIO_TOKEN 不同。"
+      },
+      "DB": {
+        "description": "保存 Newsletter 订阅数据的 D1 数据库。"
+      },
+      "MEDIA": {
+        "description": "保存文章封面与正文图片的 R2 存储桶。"
+      }
+    }
+  },
+  "dependencies": {
+    "@gsap/react": "^2.1.2",
+    "fflate": "^0.8.3",
+    "gsap": "^3.15.0",
+    "lucide-react": "^1.30.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-markdown": "^10.1.0",
+    "react-router-dom": "^7.18.2",
+    "remark-gfm": "^4.0.1",
+    "yaml": "^2.9.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^6.0.5",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.1",
+    "wrangler": "^4.120.0"
+  }
+}

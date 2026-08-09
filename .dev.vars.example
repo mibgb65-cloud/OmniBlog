@@ -1,0 +1,4 @@
+# Required: a unique random value of at least 32 characters.
+STUDIO_TOKEN=replace-with-a-long-random-studio-token
+# Optional: use a different value for command-line media uploads.
+ADMIN_TOKEN=replace-with-a-different-long-random-secret
