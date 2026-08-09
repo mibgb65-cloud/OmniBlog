@@ -22,6 +22,12 @@
       "ADMIN_TOKEN": {
         "description": "可选：供命令行工具上传图片使用，必须与 STUDIO_TOKEN 不同。"
       },
+      "GITHUB_CONTENT_TOKEN": {
+        "description": "用于从写作台下线已发布文章的 GitHub fine-grained token；仅授予当前仓库 Contents 写权限。"
+      },
+      "CLOUDFLARE_DEPLOY_HOOK": {
+        "description": "可选：Workers Builds 的生产分支 Deploy Hook URL，用于删除文章后自动部署。"
+      },
       "DB": {
         "description": "保存 Newsletter 订阅数据的 D1 数据库。"
       },

@@ -314,6 +314,11 @@
   color: var(--color-background);
 }
 
+.studio-library-bulk-actions button.is-danger:hover:not(:disabled) {
+  border-color: #b42318;
+  color: #b42318;
+}
+
 .studio-library-bulk-actions button:disabled {
   cursor: not-allowed;
   opacity: 0.4;

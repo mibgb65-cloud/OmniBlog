@@ -43,14 +43,17 @@ export function useStudioManagement({ state, setState, storageReady, persistOper
   const [seriesQuery, setSeriesQuery] = useState("");
   const [seriesForm, setSeriesForm] = useState<SeriesForm>(emptySeriesForm);
   const [editingSeriesId, setEditingSeriesId] = useState("");
+  const [removedPublishedSlugs, setRemovedPublishedSlugs] = useState<Set<string>>(() => new Set());
+  const [isDeletingArticles, setIsDeletingArticles] = useState(false);
 
+  const visibleStories = useMemo(() => stories.filter((story) => !removedPublishedSlugs.has(story.slug)), [removedPublishedSlugs]);
   const categoryUsage = useMemo(() => new Map(state.categories.map((category) => [category.id, {
-    published: stories.filter((story) => story.categoryId === category.id).length,
+    published: visibleStories.filter((story) => story.categoryId === category.id).length,
     drafts: state.drafts.filter((item) => item.category === category.id).length,
-  }])), [state.categories, state.drafts]);
+  }])), [state.categories, state.drafts, visibleStories]);
   const managedArticles = useMemo<ManagedArticle[]>(() => {
     const matchedDraftIds = new Set<string>();
-    const publishedArticles = stories.map((story): ManagedArticle => {
+    const publishedArticles = visibleStories.map((story): ManagedArticle => {
       const localDraft = state.drafts.find((item) => item.slug === story.slug && !matchedDraftIds.has(item.id));
       if (localDraft) matchedDraftIds.add(localDraft.id);
       return {
@@ -87,7 +90,7 @@ export function useStudioManagement({ state, setState, storageReady, persistOper
       }));
     return [...publishedArticles, ...localArticles]
       .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
-  }, [state.drafts]);
+  }, [state.drafts, visibleStories]);
   const visibleManagedArticles = useMemo(() => {
     const query = articleQuery.trim().toLocaleLowerCase();
     return managedArticles.filter((item) => {
@@ -99,7 +102,6 @@ export function useStudioManagement({ state, setState, storageReady, persistOper
     });
   }, [articleCategory, articleFilter, articleQuery, managedArticles]);
   const selectedManagedArticles = managedArticles.filter((item) => selectedArticleKeys.has(item.key));
-  const selectedDraftCount = selectedManagedArticles.filter((item) => item.draft).length;
   const activeMoveCategory = state.categories.some((category) => category.id === moveCategory)
     ? moveCategory
     : state.categories[0]?.id ?? "";
@@ -109,9 +111,9 @@ export function useStudioManagement({ state, setState, storageReady, persistOper
     pending: managedArticles.filter((item) => item.status === "pending").length,
   }), [managedArticles]);
   const seriesUsage = useMemo(() => new Map(state.series.map((series) => [series.id, {
-    published: stories.filter((story) => seriesNameMatches({ zh: story.series.zh ?? "", en: story.series.en ?? "" }, series)).length,
+    published: visibleStories.filter((story) => seriesNameMatches({ zh: story.series.zh ?? "", en: story.series.en ?? "" }, series)).length,
     drafts: state.drafts.filter((item) => seriesNameMatches(item.series, series)).length,
-  }])), [state.drafts, state.series]);
+  }])), [state.drafts, state.series, visibleStories]);
   const visibleCategories = useMemo(() => {
     const query = managerCategoryQuery.trim().toLocaleLowerCase();
     if (!query) return state.categories;
@@ -206,24 +208,66 @@ export function useStudioManagement({ state, setState, storageReady, persistOper
     setSelectedArticleKeys(new Set());
   };
 
-  const deleteSelectedDrafts = () => {
+  const deleteSelectedArticles = async () => {
     const draftIds = selectedManagedArticles.flatMap((item) => item.draft ? [item.draft.id] : []);
-    if (!draftIds.length) return;
-    if (!window.confirm(`确定删除选中的 ${draftIds.length} 篇本地稿吗？已发布原文不会被删除。`)) return;
-    const deletedIds = new Set(draftIds);
-    setState((current) => {
-      const remaining = current.drafts.filter((item) => !deletedIds.has(item.id));
-      const nextDrafts = remaining.length ? remaining : [createDraft(current.categories[0]?.id)];
-      const activeId = deletedIds.has(current.activeId) ? nextDrafts[0].id : current.activeId;
-      return { ...current, drafts: nextDrafts, activeId };
-    });
-    if (storageReady) {
-      void persistOperation((async () => {
-        await Promise.all(draftIds.map((draftId) => deleteStudioAssets(draftId)));
-      })());
+    const publishedSlugs = [...new Set(selectedManagedArticles.flatMap((item) => item.story ? [item.story.slug] : []))];
+    if (!draftIds.length && !publishedSlugs.length) return;
+    const detail = [
+      publishedSlugs.length ? `${publishedSlugs.length} 篇已发布文章将从仓库下线` : "",
+      draftIds.length ? `${draftIds.length} 篇本地稿将被删除` : "",
+    ].filter(Boolean).join("，");
+    if (!window.confirm(`确定继续吗？${detail}。仓库删除可通过 Git 历史恢复。`)) return;
+    setIsDeletingArticles(true);
+    setManagerStatus(publishedSlugs.length ? "正在创建下线提交…" : "正在删除本地稿…");
+    let deletionResult;
+    try {
+      if (publishedSlugs.length) {
+        const response = await fetch("/api/studio/articles/delete", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ slugs: publishedSlugs }),
+        });
+        deletionResult = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          const configuredMessage = response.status === 401
+            ? "写作台登录已过期，请刷新页面并重新登录。"
+            : deletionResult.code === "github_not_configured"
+              ? "尚未配置 GitHub 内容凭据，无法删除已发布文章。"
+              : deletionResult.code === "github_conflict"
+                ? "仓库刚刚发生变化，请重新选择后再试。"
+                : "下线提交失败，请稍后重试。";
+          throw new Error(configuredMessage);
+        }
+      }
+
+      const deletedIds = new Set(draftIds);
+      setState((current) => {
+        const remaining = current.drafts.filter((item) => !deletedIds.has(item.id));
+        const nextDrafts = remaining.length ? remaining : [createDraft(current.categories[0]?.id)];
+        const activeId = deletedIds.has(current.activeId) ? nextDrafts[0].id : current.activeId;
+        return { ...current, drafts: nextDrafts, activeId };
+      });
+      if (publishedSlugs.length) {
+        setRemovedPublishedSlugs((current) => new Set([...current, ...publishedSlugs]));
+      }
+      if (storageReady && draftIds.length) {
+        void persistOperation((async () => {
+          await Promise.all(draftIds.map((draftId) => deleteStudioAssets(draftId)));
+        })());
+      }
+      const deploymentMessage = !publishedSlugs.length
+        ? ""
+        : deletionResult.deployment?.triggered
+          ? "，并已触发线上部署"
+          : "；仓库提交已完成，但未触发部署，请手动运行 npm run deploy";
+      const mediaWarning = deletionResult?.media?.failed ? "。R2 图片清理失败，可稍后重试" : "";
+      setManagerStatus(`已删除 ${publishedSlugs.length} 篇已发布文章和 ${draftIds.length} 篇本地稿${deploymentMessage}${mediaWarning}。`);
+      setSelectedArticleKeys(new Set());
+    } catch (error) {
+      setManagerStatus(error instanceof Error ? error.message : "删除失败，请稍后重试。");
+    } finally {
+      setIsDeletingArticles(false);
     }
-    setManagerStatus(`已删除 ${draftIds.length} 篇本地稿；已发布原文保持不变。`);
-    setSelectedArticleKeys(new Set());
   };
 
   const addCategory = (event: FormEvent<HTMLFormElement>) => {
@@ -423,7 +467,8 @@ export function useStudioManagement({ state, setState, storageReady, persistOper
     managedArticles,
     visibleManagedArticles,
     selectedManagedArticles,
-    selectedDraftCount,
+    publishedStoryCount: visibleStories.length,
+    isDeletingArticles,
     activeMoveCategory,
     articleCounts,
     seriesUsage,
@@ -438,7 +483,7 @@ export function useStudioManagement({ state, setState, storageReady, persistOper
     allVisibleSelected,
     toggleVisibleArticles,
     moveSelectedArticles,
-    deleteSelectedDrafts,
+    deleteSelectedArticles,
     addCategory,
     deleteCategory,
     editManagerCategory,

@@ -1,3 +1,5 @@
+import { ContentMutationError, unpublishArticles, validateArticleSlugs } from "./github.js";
+
 const json = (data, status = 200) => new Response(JSON.stringify(data), {
   status,
   headers: {
@@ -266,6 +268,35 @@ async function subscribe(request, env) {
   return json({ ok: true }, 201);
 }
 
+async function deletePublishedArticles(request, env) {
+  if (!isSameOrigin(request)) return json({ error: "Cross-site requests are not allowed." }, 403);
+  if (!await isStudioAuthenticated(request, env)) return json({ error: "Unauthorized." }, 401);
+  const actor = request.headers.get("cf-connecting-ip") ?? "studio";
+  const limited = await enforceRateLimit(env.STUDIO_MUTATION_RATE_LIMITER, actor);
+  if (limited) return limited;
+  const contentLength = Number(request.headers.get("content-length") ?? 0);
+  if (contentLength > 4096) return json({ error: "Request body is too large." }, 413);
+
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ error: "Invalid JSON body." }, 400);
+  }
+  const slugs = validateArticleSlugs(body?.slugs);
+  if (!slugs) return json({ error: "Select between 1 and 20 valid article slugs." }, 400);
+
+  try {
+    const result = await unpublishArticles(env, slugs);
+    return json({ ok: true, slugs, ...result });
+  } catch (error) {
+    if (error instanceof ContentMutationError) {
+      return json({ error: error.message, code: error.code }, error.status);
+    }
+    return json({ error: "Published article deletion is temporarily unavailable." }, 503);
+  }
+}
+
 function mediaKey(pathname, prefix) {
   try {
     const key = decodeURIComponent(pathname.slice(prefix.length));
@@ -345,6 +376,7 @@ export default {
     const url = new URL(request.url);
     if (url.pathname === "/api/studio/login" && request.method === "POST") return loginStudio(request, env);
     if (url.pathname === "/api/studio/logout" && request.method === "POST") return logoutStudio(request);
+    if (url.pathname === "/api/studio/articles/delete" && request.method === "POST") return deletePublishedArticles(request, env);
     if (url.pathname === "/studio" || url.pathname.startsWith("/studio/")) {
       if (request.method !== "GET" && request.method !== "HEAD") return json({ error: "Method not allowed." }, 405);
       if (!env.STUDIO_TOKEN) return studioLoginPage(env, "服务器尚未配置 STUDIO_TOKEN。", 503);

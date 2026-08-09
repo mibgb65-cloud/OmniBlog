@@ -8,6 +8,7 @@ import {
   FolderInput,
   Layers3,
   ListFilter,
+  LoaderCircle,
   PenLine,
   Plus,
   Search,
@@ -15,7 +16,6 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { stories } from "../../articles";
 import type { Locale } from "../../content";
 import { emptyCategoryForm, emptySeriesForm } from "../../studio/studioModel";
 import type { StudioPageModel } from "../../studio/useStudioPage";
@@ -44,8 +44,9 @@ export function StudioManager({ studio }: StudioManagerProps) {
     activeMoveCategory,
     setMoveCategory,
     moveSelectedArticles,
-    selectedDraftCount,
-    deleteSelectedDrafts,
+    publishedStoryCount,
+    isDeletingArticles,
+    deleteSelectedArticles,
     selectedArticleKeys,
     toggleArticleSelection,
     openDraft,
@@ -102,7 +103,7 @@ export function StudioManager({ studio }: StudioManagerProps) {
             {managementSection === "articles" ? (
               <>
             <div className="studio-manager-summary" aria-label="文章概览">
-              <div><span>线上文章</span><strong>{stories.length}</strong><small>当前博客可见</small></div>
+              <div><span>线上文章</span><strong>{publishedStoryCount}</strong><small>当前博客可见</small></div>
               <div><span>本地草稿</span><strong>{state.drafts.length}</strong><small>保存在此浏览器</small></div>
               <div><span>待更新</span><strong>{articleCounts.pending}</strong><small>与线上文章同 slug</small></div>
             </div>
@@ -153,7 +154,9 @@ export function StudioManager({ studio }: StudioManagerProps) {
                       <ChevronDown aria-hidden="true" />
                     </label>
                     <button type="button" className="is-primary" onClick={moveSelectedArticles}><FolderInput aria-hidden="true" />移动</button>
-                    <button type="button" disabled={!selectedDraftCount} title={selectedDraftCount ? "删除选中的本地稿" : "已发布原文不能在浏览器中直接删除"} onClick={deleteSelectedDrafts}><Trash2 aria-hidden="true" />删除本地稿</button>
+                    <button type="button" className="is-danger" disabled={isDeletingArticles} onClick={() => void deleteSelectedArticles()}>
+                      {isDeletingArticles ? <LoaderCircle className="is-spinning" aria-hidden="true" /> : <Trash2 aria-hidden="true" />}删除文章
+                    </button>
                   </div>
                 ) : null}
               </div>
@@ -202,7 +205,7 @@ export function StudioManager({ studio }: StudioManagerProps) {
               )}
 
               <p className="studio-manager-status" aria-live="polite">{managerStatus}</p>
-              <p className="studio-manager-note"><CircleAlert aria-hidden="true" />移动已发布文章时会建立待更新稿；下载发布包并重新部署后，线上分类才会变化。</p>
+              <p className="studio-manager-note"><CircleAlert aria-hidden="true" />删除已发布文章会创建 Git 提交并清理对应图片；完成部署后线上才会下线。</p>
             </section>
               </>
             ) : managementSection === "categories" ? (

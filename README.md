@@ -181,6 +181,24 @@ content/articles/my-story.en.md
 
 完整发布包会包含最新的 `content/categories.json`；仅下载单个 Markdown 不会更新分类配置。
 
+### 下线已发布文章
+
+文章管理支持批量删除已发布文章。写作台会请求受登录会话保护的 Worker API，由 Worker 在 GitHub 创建一个原子提交，同时删除该 slug 的中英文 Markdown、`public/images/articles/<slug>/` 图片和 R2 图片。浏览器只发送 slug，不会接触 GitHub token。
+
+在 GitHub 创建仅限当前仓库、仅有 **Contents: Read and write** 权限的 fine-grained token，然后保存为 Cloudflare Secret：
+
+```bash
+npx wrangler secret put GITHUB_CONTENT_TOKEN
+```
+
+仓库和分支由 `wrangler.jsonc` 中公开的 `GITHUB_REPOSITORY`、`GITHUB_BRANCH` 指定。若希望删除提交后自动上线，请先把 Worker 连接到 GitHub 仓库，再在 Cloudflare **Settings → Builds → Deploy Hooks** 创建 `main` 分支 Hook，并保存为 Secret：
+
+```bash
+npx wrangler secret put CLOUDFLARE_DEPLOY_HOOK
+```
+
+未配置 Deploy Hook 时，仓库删除仍会完成，但写作台会明确提示需要手动执行 `npm run deploy`。删除提交可以通过 Git 历史恢复。
+
 ## SEO 与站点配置
 
 在 [`content/site.json`](./content/site.json) 中设置正式域名、作者、邮箱与 Cloudflare Web Analytics token。构建会生成：
@@ -208,6 +226,8 @@ Cloudflare 会读取 [`wrangler.jsonc`](./wrangler.jsonc) 与项目绑定声明�
 | --- | --- | --- |
 | `STUDIO_TOKEN` | 是 | 写作台登录并签发 12 小时 HttpOnly 会话 |
 | `ADMIN_TOKEN` | 可选 | 命令行或外部工具通过 Bearer Token 上传图片 |
+| `GITHUB_CONTENT_TOKEN` | 删除线上文章时必需 | 仅授予当前仓库 Contents 写权限 |
+| `CLOUDFLARE_DEPLOY_HOOK` | 可选 | 删除提交后触发生产分支构建 |
 | `DB` | 是 | Newsletter 订阅数据 |
 | `MEDIA` | 是 | 封面与正文图片 |
 
@@ -219,6 +239,8 @@ Cloudflare 会读取 [`wrangler.jsonc`](./wrangler.jsonc) 与项目绑定声明�
 npx wrangler login
 npx wrangler secret put STUDIO_TOKEN
 npx wrangler secret put ADMIN_TOKEN
+npx wrangler secret put GITHUB_CONTENT_TOKEN
+npx wrangler secret put CLOUDFLARE_DEPLOY_HOOK
 npm run deploy
 ```
 

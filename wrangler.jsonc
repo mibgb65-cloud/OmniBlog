@@ -11,6 +11,10 @@
     "html_handling": "auto-trailing-slash"
   },
   "workers_dev": false,
+  "vars": {
+    "GITHUB_REPOSITORY": "mibgb65-cloud/OmniBlog",
+    "GITHUB_BRANCH": "main"
+  },
   "d1_databases": [
     { "binding": "DB", "database_name": "omniblog-subscribers" }
   ],
@@ -32,6 +36,11 @@
       "name": "MEDIA_RATE_LIMITER",
       "namespace_id": "8432103",
       "simple": { "limit": 60, "period": 60 }
+    },
+    {
+      "name": "STUDIO_MUTATION_RATE_LIMITER",
+      "namespace_id": "8432104",
+      "simple": { "limit": 10, "period": 60 }
     }
   ],
   "observability": {
