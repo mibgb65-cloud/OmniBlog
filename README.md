@@ -1,64 +1,128 @@
-# OmniBlog / 万象志
+<p align="center">
+  <img src="./docs/omniblog-readme.svg" alt="Omni Journal — 万象志" width="100%" />
+</p>
 
-一个基于项目内 Apple Editorial 设计规范实现的双语个人博客。使用 React、React Router、Markdown、GSAP 与 Cloudflare Workers Static Assets。
+<h1 align="center">OmniBlog · 万象志</h1>
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/mibgb65-cloud/OmniBlog)
+<p align="center">
+  一个安静、克制、适合长期写作的双语个人博客。<br />
+  <sub>An editorial publishing system for ideas worth slowing down for.</sub>
+</p>
 
-点击按钮会在你的 GitHub 账户中创建一份仓库副本，并通过 Workers Builds 部署；D1 与 R2 会在配置过程中创建。部署页面会要求填写 `STUDIO_TOKEN`，`ADMIN_TOKEN` 仅在需要从命令行上传图片时配置。请为它们使用不同的随机长密码。
+<p align="center">
+  <img alt="React 19" src="https://img.shields.io/badge/React-19-18181b?style=flat-square&logo=react&logoColor=white" />
+  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-7-18181b?style=flat-square&logo=typescript&logoColor=white" />
+  <img alt="Vite 8" src="https://img.shields.io/badge/Vite-8-18181b?style=flat-square&logo=vite&logoColor=white" />
+  <img alt="Cloudflare Workers" src="https://img.shields.io/badge/Cloudflare-Workers-18181b?style=flat-square&logo=cloudflare&logoColor=white" />
+</p>
 
-## 本地运行
+<p align="center">
+  <a href="https://deploy.workers.cloudflare.com/?url=https://github.com/mibgb65-cloud/OmniBlog">
+    <img src="https://deploy.workers.cloudflare.com/button" alt="Deploy to Cloudflare" />
+  </a>
+</p>
+
+<p align="center">
+  <a href="#设计与能力">设计与能力</a>&nbsp;&nbsp;·&nbsp;&nbsp;
+  <a href="#快速开始">快速开始</a>&nbsp;&nbsp;·&nbsp;&nbsp;
+  <a href="#写作与发布">写作与发布</a>&nbsp;&nbsp;·&nbsp;&nbsp;
+  <a href="#部署到-cloudflare">Cloudflare 部署</a>
+</p>
+
+---
+
+## 项目定位
+
+OmniBlog 不是通用 CMS，而是一套为个人写作者设计的轻量出版系统：文章以 Markdown 长期保存，写作台负责草稿、分类与图片，Cloudflare Workers 负责访问控制、静态资源和数据接口。
+
+界面遵循仓库内的 [Apple Editorial 设计规范](./apple-editorial-blog-design-spec.md)，重点放在排版、留白、阅读节奏和跨页面动效，而不是堆叠组件。
+
+## 设计与能力
+
+| 编辑体验 | 内容系统 | Cloudflare 原生 |
+| --- | --- | --- |
+| Apple Editorial 视觉语言 | 中英文独立路由与内容回退 | Workers Static Assets |
+| 亮暗主题与开屏动画 | Markdown、标签、系列与分类 | D1 Newsletter 订阅 |
+| 路由切换与渐进式滚动条 | 全文搜索与相关文章 | R2 文章图片 |
+| 响应式阅读布局 | 自动 SEO、RSS 与 Sitemap | Token 保护的写作台 |
+
+写作台支持：
+
+- 中文与英文分别编辑，英文版本可后补
+- 粘贴、拖放或选择正文图片，并自动转为 WebP
+- 表情插入、Markdown 预览和图片替代文字
+- 新增分类、删除未占用分类，以及分类占用保护
+- IndexedDB 自动保存、完整工作区备份与恢复
+- 一键导出文章、图片和分类配置组成的发布 ZIP
+
+## 技术架构
+
+```mermaid
+flowchart LR
+  Studio["/studio 写作台"] --> Drafts["IndexedDB 草稿与图片"]
+  Studio --> Package["完整发布 ZIP"]
+  Package --> Content["Markdown + categories.json"]
+  Content --> Build["Vite 构建与 SEO 生成"]
+  Build --> Worker["Cloudflare Worker"]
+  Worker --> Assets["Static Assets"]
+  Worker --> D1["D1 · Newsletter"]
+  Worker --> R2["R2 · Media"]
+```
+
+## 快速开始
+
+### 普通前端开发
 
 ```bash
 npm install
 npm run dev
 ```
 
-包含 D1 订阅接口与 R2 图片接口的完整 Cloudflare 本地环境：
+打开 `http://localhost:5173/zh`。这个模式用于界面和文章开发，不包含 Worker 登录鉴权、D1 与 R2。
 
-```bash
+### 完整 Cloudflare 本地环境
+
+```powershell
 Copy-Item .dev.vars.example .dev.vars
-# 将 .dev.vars 中的 STUDIO_TOKEN 与 ADMIN_TOKEN 换成不同的随机长密码
+# 将两个示例值替换为不同的随机长密码
 npm run cf:dev
 ```
 
-生产构建：
+`.dev.vars` 只保存在本机并已被 Git 忽略。完整环境启动后，通过 `/studio` 登录写作台。
+
+### 构建检查
 
 ```bash
 npm run build
 npm run preview
 ```
 
-## 路由
+## 页面路由
 
-- `/zh`、`/en`：首页
-- `/zh/stories`、`/en/stories`：文章索引与全文搜索
-- `/:locale/stories/category/:categoryId`：分类文章
-- `/:locale/stories/:slug`：文章详情
-- `/zh/about`、`/en/about`：关于
-- `/studio`：由 Worker Token 登录保护的写作台，不会进入搜索引擎，也不会出现在公开导航中
+| 路由 | 用途 |
+| --- | --- |
+| `/zh`、`/en` | 中英文首页 |
+| `/zh/stories`、`/en/stories` | 文章索引与全文搜索 |
+| `/:locale/stories/category/:categoryId` | 分类文章 |
+| `/:locale/stories/:slug` | 文章详情 |
+| `/zh/about`、`/en/about` | 关于页面 |
+| `/studio` | Token 登录保护的写作台 |
 
-语言放在 URL 中，便于分享和深链接。亮暗主题保存在浏览器 `localStorage` 中，并默认跟随系统主题。
+语言位于 URL 中，便于分享、深链接、Canonical 与 `hreflang`。亮暗主题保存在浏览器，并默认跟随系统设置。
 
-## 添加文章
+## 写作与发布
 
-目前采用“Markdown 文件即文章”的方式，不需要数据库或后台。最短发布流程是：
+最短工作流：
 
-1. 使用 `npm run cf:dev` 或已部署域名打开 `/studio`，输入 `STUDIO_TOKEN` 后新建草稿。`npm run dev` 只启动 Vite，不包含 Worker 登录鉴权。
-2. 填写发布信息和中文正文，英文版本可以以后补。
-3. 在写作台处理封面与正文图片；草稿和图片会一起保存在当前浏览器的 IndexedDB 中，刷新后自动恢复。
-4. 点击“下载完整发布包”，得到包含 Markdown、封面和正文图片的 ZIP；把其中的 `content` 与 `public` 目录合并到项目根目录。
-5. 运行 `npm run build` 检查；确认后提交到 GitHub，或执行 `npm run deploy` 发布。
+1. 在完整本地环境或部署域名打开 `/studio`，使用 `STUDIO_TOKEN` 登录。
+2. 编写一种或两种语言，设置分类、标签、系列、封面和正文图片。
+3. 下载“完整发布包”，把其中的 `content` 与 `public` 合并到项目根目录。
+4. 执行 `npm run build`；检查通过后提交 Git，或运行 `npm run deploy`。
 
-写作台侧栏可以备份或恢复全部草稿与图片。浏览器存储不是跨设备云同步，建议定期下载备份 ZIP。
+草稿、分类和图片保存在当前浏览器的 IndexedDB 中，不会自动跨设备同步。建议定期在写作台侧栏下载完整备份。
 
-每篇文章可以只有中文，也可以同时提供中英文：
-
-```text
-content/articles/my-story.zh.md
-content/articles/my-story.en.md
-```
-
-Markdown 文件格式：
+<details>
+<summary><strong>查看 Markdown 文章格式</strong></summary>
 
 ```md
 ---
@@ -71,6 +135,8 @@ title: "文章标题"
 summary: "文章摘要。"
 cover: "/images/articles/my-story/cover.webp"
 coverAlt: "准确描述封面内容的替代文字"
+tags: ["界面设计", "注意力"]
+series: "界面与注意力"
 ---
 
 文章正文。
@@ -80,121 +146,111 @@ coverAlt: "准确描述封面内容的替代文字"
 ![图片的替代文字](/images/articles/my-story/detail.webp)
 ```
 
-有两种语言时，两个文件的 `slug`、`date`、`category` 和 `cover` 必须一致。只有中文时，英文页面会显示明确的原文提示并设置为 `noindex`，等英文文件补齐后会自动恢复完整双语 SEO。
-
-正文支持常用 Markdown 语法：`##` 二级标题会自动进入文章目录，`![替代文字](图片路径)` 会插入正文图片，也可以使用链接、列表、引用和代码块。
-
-可选的标签与系列写在 Front Matter 中：
-
-```yaml
-tags: ["界面设计", "注意力"]
-series: "界面与注意力"
-```
-
-标签和系列会自动生成筛选入口，并用于计算相关文章。
-
-## 添加文章图片
-
-把图片放在：
+双语文章使用相同的 `slug`、`date`、`category` 与 `cover`：
 
 ```text
-public/images/articles/<文章 slug>/
+content/articles/my-story.zh.md
+content/articles/my-story.en.md
 ```
 
-然后通过 Front Matter 的 `cover` 或标准 Markdown 图片语法引用。支持 SVG、WebP、AVIF、JPEG 和 PNG；摄影图片优先使用 WebP/AVIF，封面建议至少 1600px 宽、比例为 16:9 或 16:10。每张图片都应填写有意义的替代文字。
+只有一种语言时，另一语言页面会显示原文提示并设置为 `noindex`；补齐翻译后自动恢复完整双语 SEO。
 
-写作台会在浏览器内自动生成：
+</details>
 
-- `cover.webp`：1600 × 1000
-- `thumbnail.webp`：800 × 500
-- `og.webp`：1200 × 630
-- 正文图片：最长边不超过 1600px 的 WebP
+### 图片输出
 
-可以逐个下载、打入完整发布包，也可以在 `npm run cf:dev` 或部署环境中使用当前写作台登录会话直接上传到 R2。
+写作台会在浏览器中生成：
 
-## 添加分类
+| 文件 | 规格 |
+| --- | --- |
+| `cover.webp` | 1600 × 1000 |
+| `thumbnail.webp` | 800 × 500 |
+| `og.webp` | 1200 × 630 |
+| 正文图片 | 最长边不超过 1600px |
 
-在写作台的“发布设置 → 管理分类”中，可以添加中英文分类并删除未被文章或草稿使用的分类。分类与草稿一起保存在当前浏览器；“下载完整发布包”会同时生成最新的 `content/categories.json`。
+图片可以随发布包进入 `public/images/articles/<slug>/`，也可以使用当前写作台会话直接上传到 R2，并自动把文章路径切换为 `/media/...`。
 
-也可以直接在 `content/categories.json` 中增加一项：
+### 分类管理
 
-```json
-{
-  "id": "photography",
-  "name": { "zh": "摄影", "en": "Photography" },
-  "description": {
-    "zh": "关于影像与观看方式的记录。",
-    "en": "Notes on images and ways of seeing."
-  }
-}
-```
+在“发布设置 → 管理分类”中添加中英文名称、标识和简介。正在被已发布文章或草稿使用的分类会锁定删除，避免导出后产生失效文章。
 
-然后在文章 Front Matter 中设置 `category: photography`。分类会自动进入筛选导航和中英文分类路由。若在写作台新增了分类，请使用完整发布包，或手动同步其中的 `content/categories.json`；仅下载 Markdown 不会更新分类配置。
+完整发布包会包含最新的 `content/categories.json`；仅下载单个 Markdown 不会更新分类配置。
 
-## 站点与 SEO 配置
+## SEO 与站点配置
 
-在 `content/site.json` 中替换真实域名、作者和邮箱。`npm run build` 会自动生成：
+在 [`content/site.json`](./content/site.json) 中设置正式域名、作者、邮箱与 Cloudflare Web Analytics token。构建会生成：
 
-- 每个中英文页面的独立 HTML 元数据
-- Canonical 与 hreflang
-- Open Graph、Twitter Card 和 BlogPosting 结构化数据
-- `sitemap.xml`
-- `rss.xml`
-- `robots.txt`
+- 每个中英文页面的独立元数据
+- Canonical、`hreflang` 与 Open Graph
+- Twitter Card 与 `BlogPosting` 结构化数据
+- `sitemap.xml`、`rss.xml` 和 `robots.txt`
 
-这些生成文件不需要手动维护。
+生成文件不需要手动维护。
 
-## 部署到 Cloudflare Workers
+## 部署到 Cloudflare
 
 ### 一键部署
 
-使用 README 顶部的 Deploy to Cloudflare 按钮。该方式要求源仓库保持公开，Cloudflare 会读取 `wrangler.jsonc`，配置 Worker，并自动创建所需的 D1 数据库与 R2 存储桶。Secret 只在 Cloudflare 配置页面填写，不会写回公开仓库。
+<a href="https://deploy.workers.cloudflare.com/?url=https://github.com/mibgb65-cloud/OmniBlog">
+  <img src="https://deploy.workers.cloudflare.com/button" alt="Deploy to Cloudflare" />
+</a>
 
-### 命令行部署
+Cloudflare 会读取 [`wrangler.jsonc`](./wrangler.jsonc) 与项目绑定声明，并在部署流程中引导配置 Worker、D1 和 R2。Secret 只在 Cloudflare 界面填写，不会写回公开仓库。
 
-首次部署先登录：
+部署时需要准备：
+
+| 配置 | 是否必需 | 用途 |
+| --- | --- | --- |
+| `STUDIO_TOKEN` | 是 | 写作台登录并签发 12 小时 HttpOnly 会话 |
+| `ADMIN_TOKEN` | 可选 | 命令行或外部工具通过 Bearer Token 上传图片 |
+| `DB` | 是 | Newsletter 订阅数据 |
+| `MEDIA` | 是 | 封面与正文图片 |
+
+`STUDIO_TOKEN` 与 `ADMIN_TOKEN` 必须使用不同的高强度随机值。
+
+### Wrangler 命令行
 
 ```bash
 npx wrangler login
 npx wrangler secret put STUDIO_TOKEN
 npx wrangler secret put ADMIN_TOKEN
-```
-
-然后执行：
-
-```bash
 npm run deploy
 ```
 
-`STUDIO_TOKEN` 用于写作台登录并签发 12 小时的 HttpOnly 会话；`ADMIN_TOKEN` 仅保留给命令行或其他工具通过 Bearer Token 上传图片。两者都应使用独立的高强度随机值，不要写入 `wrangler.jsonc` 或提交到仓库。
+首次部署后，将 Cloudflare 提供的正式地址写入 `content/site.json`，再部署一次以生成正确的 Canonical、RSS 和 Sitemap 地址。
+
+## 目录结构
+
+```text
+OmniBlog/
+├─ content/
+│  ├─ articles/          # Markdown 文章
+│  ├─ categories.json    # 双语分类
+│  └─ site.json          # 站点与 SEO 配置
+├─ public/
+│  └─ images/articles/   # 本地文章图片
+├─ src/                  # React 界面、路由与写作台
+├─ worker/               # 登录、D1 与 R2 接口
+├─ scripts/              # 静态页面、RSS 与 Sitemap 生成
+└─ wrangler.jsonc        # Cloudflare Workers 配置
+```
 
 ## 公开仓库安全
 
-- 不要提交 `.dev.vars`、`.env`、API Token、私钥或 Cloudflare 本地状态。
-- 仓库只保留 `.dev.vars.example` 中的占位符；真实值使用 Cloudflare Secrets、Workers Builds Secrets 或 GitHub Actions Secrets。
-- 提交前运行 `git status`，确认 `.dev.vars`、`.wrangler`、`dist` 和本地备份文件没有进入暂存区。
-- 如果 Token 曾出现在提交历史中，应立即在对应平台撤销并重新生成；仅删除文件并不能让旧 Token 失效。
+- 不要提交 `.dev.vars`、`.env`、API Token、私钥或 `.wrangler` 本地状态。
+- 仓库只保留 `.dev.vars.example` 占位符；真实值使用 Cloudflare Secrets。
+- 推送前运行 `git status`，确认 `dist`、本地备份和敏感配置没有进入暂存区。
+- 如果 Token 曾出现在 Git 历史中，应立即撤销并重新生成；删除文件不能让旧 Token 失效。
 
-`wrangler.jsonc` 已将 `dist` 配置为 Workers Static Assets，使用自动 HTML 路由并保留 SPA 回退；`/studio`、`/api/*` 与 `/media/*` 会优先进入 Worker，以便在静态页面前完成鉴权。配置方式对应 Cloudflare 的 [Static Assets binding](https://developers.cloudflare.com/workers/static-assets/binding/) 与 [SPA 部署文档](https://developers.cloudflare.com/workers/static-assets/routing/single-page-application/)。
-
-配置中声明了 `DB`（D1）与 `MEDIA`（R2）绑定但没有写死资源 ID。新版 Wrangler 会在首次部署时自动配置资源，并把资源 ID 写回配置文件。订阅表会在第一次有效订阅时创建。
-
-查看订阅者：
+查看远端订阅者：
 
 ```bash
 npx wrangler d1 execute DB --remote --command "SELECT email, locale, created_at FROM subscribers WHERE status = 'active' ORDER BY created_at DESC"
 ```
 
-Cloudflare Email Service 适合事务邮件，不用于批量营销邮件；订阅者数据已经真实保存，后续发送 Newsletter 时应接入专门的邮件营销服务。
+## Credits
 
-## 访问统计
+- UI 依据项目内 [Apple Editorial Blog Design Specification](./apple-editorial-blog-design-spec.md) 实现。
+- 品牌标题使用 Noto Serif SC 精简字体子集，遵循 [SIL Open Font License 1.1](./public/fonts/OFL-NotoSerifSC.txt)。
 
-如果站点已由 Cloudflare 代理，可以直接在 Cloudflare 控制台启用 Web Analytics。也可以把控制台提供的 token 写入 `content/site.json`：
-
-```json
-"analytics": {
-  "cloudflareToken": "你的 Web Analytics token"
-}
-```
-
-构建会自动注入 Cloudflare Beacon，并自动跟踪 React Router 的 SPA 路由变化。token 为空时不会加载任何统计脚本。
+<p align="center"><sub>Independent writing. Quietly published.</sub></p>
