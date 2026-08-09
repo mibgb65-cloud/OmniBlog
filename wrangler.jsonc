@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "omniblog",
+  "name": "omni-blog",
   "main": "./worker/index.js",
   "compatibility_date": "2026-08-08",
   "assets": {
@@ -10,6 +10,7 @@
     "not_found_handling": "single-page-application",
     "html_handling": "auto-trailing-slash"
   },
+  "workers_dev": false,
   "d1_databases": [
     { "binding": "DB", "database_name": "omniblog-subscribers" }
   ],

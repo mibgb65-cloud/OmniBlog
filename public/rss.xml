@@ -2,41 +2,41 @@
 <rss version="2.0">
   <channel>
     <title>Omni Journal</title>
-    <link>https://omniblog.mibgb65.workers.dev/zh</link>
+    <link>https://example.com/zh</link>
     <description>关于设计、技术与日常的独立笔记。</description>
     <language>zh-CN</language>
     <item>
       <title>为什么真正高级的界面，总是在做减法。</title>
-      <link>https://omniblog.mibgb65.workers.dev/zh/stories/the-art-of-less</link>
-      <guid>https://omniblog.mibgb65.workers.dev/zh/stories/the-art-of-less</guid>
+      <link>https://example.com/zh/stories/the-art-of-less</link>
+      <guid>https://example.com/zh/stories/the-art-of-less</guid>
       <pubDate>Thu, 06 Aug 2026 00:00:00 GMT</pubDate>
       <description>从层级、留白到动效，重新理解简单背后的复杂判断。</description>
     </item>
     <item>
       <title>从首页开始，建立一个网站的气质。</title>
-      <link>https://omniblog.mibgb65.workers.dev/zh/stories/a-homepage-has-a-tone</link>
-      <guid>https://omniblog.mibgb65.workers.dev/zh/stories/a-homepage-has-a-tone</guid>
+      <link>https://example.com/zh/stories/a-homepage-has-a-tone</link>
+      <guid>https://example.com/zh/stories/a-homepage-has-a-tone</guid>
       <pubDate>Tue, 28 Jul 2026 00:00:00 GMT</pubDate>
       <description>首页不必解释一切，但必须让人知道该用怎样的速度阅读。</description>
     </item>
     <item>
       <title>我们如何设计注意力，也如何被注意力塑造。</title>
-      <link>https://omniblog.mibgb65.workers.dev/zh/stories/designing-for-attention</link>
-      <guid>https://omniblog.mibgb65.workers.dev/zh/stories/designing-for-attention</guid>
+      <link>https://example.com/zh/stories/designing-for-attention</link>
+      <guid>https://example.com/zh/stories/designing-for-attention</guid>
       <pubDate>Thu, 16 Jul 2026 00:00:00 GMT</pubDate>
       <description>当界面越来越擅长抓住我们，克制反而成为更稀缺的设计能力。</description>
     </item>
     <item>
       <title>好的软件，应该让人看见它的边界。</title>
-      <link>https://omniblog.mibgb65.workers.dev/zh/stories/software-with-edges</link>
-      <guid>https://omniblog.mibgb65.workers.dev/zh/stories/software-with-edges</guid>
+      <link>https://example.com/zh/stories/software-with-edges</link>
+      <guid>https://example.com/zh/stories/software-with-edges</guid>
       <pubDate>Tue, 30 Jun 2026 00:00:00 GMT</pubDate>
       <description>诚实的限制，比无限能力的承诺更能建立信任。</description>
     </item>
     <item>
       <title>为人的速度，而不是信息流的速度写作。</title>
-      <link>https://omniblog.mibgb65.workers.dev/zh/stories/reading-at-human-speed</link>
-      <guid>https://omniblog.mibgb65.workers.dev/zh/stories/reading-at-human-speed</guid>
+      <link>https://example.com/zh/stories/reading-at-human-speed</link>
+      <guid>https://example.com/zh/stories/reading-at-human-speed</guid>
       <pubDate>Fri, 12 Jun 2026 00:00:00 GMT</pubDate>
       <description>慢并不是形式，而是一种对读者注意力的尊重。</description>
     </item>
