@@ -76,7 +76,6 @@
   padding: 0;
   background: transparent;
   color: var(--color-text-primary);
-  outline: 0;
   font-size: clamp(30px, 5vw, 62px);
   font-weight: 600;
   letter-spacing: -0.055em;

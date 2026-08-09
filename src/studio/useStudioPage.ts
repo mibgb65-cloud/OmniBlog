@@ -45,6 +45,7 @@ export function useStudioPage() {
   const [assetStatus, setAssetStatus] = useState("");
   const [copiedAsset, setCopiedAsset] = useState("");
   const [storageReady, setStorageReady] = useState(false);
+  const [storageResolved, setStorageResolved] = useState(false);
   const [loadedAssetDraftId, setLoadedAssetDraftId] = useState("");
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("loading");
   const [packageStatus, setPackageStatus] = useState<"idle" | "packing" | "backup" | "restoring">("idle");
@@ -52,7 +53,9 @@ export function useStudioPage() {
   const bodyEditorRef = useRef<HTMLTextAreaElement>(null);
   const bodyImageInputRef = useRef<HTMLInputElement>(null);
   const bodyAssetsRef = useRef<BodyImageAsset[]>([]);
+  const bodyImageQueueRef = useRef<Promise<void>>(Promise.resolve());
   const initialStateRef = useRef(state);
+  const stateRef = useRef(state);
   const pendingSavesRef = useRef(0);
   const saveFailedRef = useRef(false);
   const caretRef = useRef({ start: 0, end: 0 });
@@ -65,8 +68,10 @@ export function useStudioPage() {
   ), [draft]);
   const canPackage = completedLocales.length > 0;
   const imageBase = draft.cover.startsWith("/media/") ? "/media" : "/images";
+  const assetsReady = !storageReady || loadedAssetDraftId === state.activeId;
 
   bodyAssetsRef.current = bodyAssets;
+  stateRef.current = state;
 
   const persistOperation = async (operation: Promise<void>) => {
     pendingSavesRef.current += 1;
@@ -99,14 +104,21 @@ export function useStudioPage() {
         setSaveStatus("saved");
       } catch {
         if (!cancelled) setSaveStatus("local");
+      } finally {
+        if (!cancelled) setStorageResolved(true);
       }
     })();
     return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(storageKey, JSON.stringify(state));
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(state));
+    } catch {
+      setSaveStatus(storageReady ? "error" : "local");
+    }
     if (!storageReady) return;
+    setSaveStatus("saving");
     const timer = window.setTimeout(() => {
       void persistOperation(writeStudioState(state));
     }, 320);
@@ -216,6 +228,7 @@ export function useStudioPage() {
       setAssetStatus("请先填写文章 slug，再选择封面。 ");
       return;
     }
+    const targetDraftId = draft.id;
     setAssetStatus("正在生成图片…");
     try {
       const [cover, thumbnail, og] = await Promise.all([
@@ -226,6 +239,11 @@ export function useStudioPage() {
       cover.filename = "cover.webp";
       thumbnail.filename = "thumbnail.webp";
       og.filename = "og.webp";
+      if (stateRef.current.activeId !== targetDraftId) {
+        [cover, thumbnail, og].forEach((asset) => URL.revokeObjectURL(asset.url));
+        setAssetStatus("封面处理已取消：处理期间切换了文章。 ");
+        return;
+      }
       setCoverAssets([cover, thumbnail, og]);
       updateDraft({ cover: `/images/articles/${draft.slug}/cover.webp` });
       setAssetStatus("已生成 WebP 封面、缩略图和社交分享图。 ");
@@ -270,6 +288,7 @@ export function useStudioPage() {
   ) => {
     const imageFiles = files.filter((file) => file.type.startsWith("image/"));
     if (!imageFiles.length) return;
+    const targetDraftId = draft.id;
     const titleSlug = (draft.title.en || draft.title.zh)
       .toLocaleLowerCase()
       .normalize("NFKD")
@@ -280,19 +299,26 @@ export function useStudioPage() {
     const progressLabel = source === "paste" ? "正在粘贴" : source === "drop" ? "正在插入" : "正在处理";
     setAssetStatus(`${progressLabel} ${imageFiles.length} 张正文图片…`);
     try {
-      const usedNames = new Set(["cover.webp", "thumbnail.webp", "og.webp", ...bodyAssets.map((asset) => asset.filename)]);
+      const usedNames = new Set(["cover.webp", "thumbnail.webp", "og.webp", ...bodyAssetsRef.current.map((asset) => asset.filename)]);
       const nextAssets: BodyImageAsset[] = [];
       for (const [index, file] of imageFiles.entries()) {
         const asset = await resizeImage(file, 1600);
         const originalName = file.name.replace(/\.[^.]+$/, "").trim();
-        const baseName = originalName.toLocaleLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-|-$/g, "") || `detail-${bodyAssets.length + index + 1}`;
+        const baseName = originalName.toLocaleLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-|-$/g, "") || `detail-${bodyAssetsRef.current.length + index + 1}`;
         let filename = `${baseName}.webp`;
         let suffix = 2;
         while (usedNames.has(filename)) filename = `${baseName}-${suffix++}.webp`;
         usedNames.add(filename);
         nextAssets.push({ ...asset, filename, alt: originalName.replace(/[\[\]]/g, "") || "正文图片" });
       }
-      setBodyAssets((current) => [...current, ...nextAssets]);
+      if (stateRef.current.activeId !== targetDraftId) {
+        nextAssets.forEach((asset) => URL.revokeObjectURL(asset.url));
+        setAssetStatus("正文图片处理已取消：处理期间切换了文章。 ");
+        return;
+      }
+      const combinedAssets = [...bodyAssetsRef.current, ...nextAssets];
+      bodyAssetsRef.current = combinedAssets;
+      setBodyAssets(combinedAssets);
       const markdown = nextAssets
         .map((asset) => `![${asset.alt}](${imageBase}/articles/${articleSlug}/${asset.filename})`)
         .join("\n\n");
@@ -305,9 +331,15 @@ export function useStudioPage() {
     }
   };
 
+  const enqueueBodyFiles = (files: File[], position = caretRef.current, source: "select" | "paste" | "drop" = "select") => {
+    bodyImageQueueRef.current = bodyImageQueueRef.current
+      .catch(() => undefined)
+      .then(() => processBodyFiles(files, position, source));
+  };
+
   const processBodyImage = (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);
-    void processBodyFiles(files);
+    enqueueBodyFiles(files);
     event.target.value = "";
   };
 
@@ -319,7 +351,7 @@ export function useStudioPage() {
     if (!files.length) return;
     event.preventDefault();
     const position = { start: event.currentTarget.selectionStart, end: event.currentTarget.selectionEnd };
-    void processBodyFiles(files, position, "paste");
+    enqueueBodyFiles(files, position, "paste");
   };
 
   const handleBodyDrop = (event: DragEvent<HTMLTextAreaElement>) => {
@@ -328,7 +360,7 @@ export function useStudioPage() {
     if (!files.length) return;
     event.preventDefault();
     const position = { start: event.currentTarget.selectionStart, end: event.currentTarget.selectionEnd };
-    void processBodyFiles(files, position, "drop");
+    enqueueBodyFiles(files, position, "drop");
   };
 
   const bodySnippet = (asset: BodyImageAsset) => `![${asset.alt}](${imageBase}/articles/${draft.slug}/${asset.filename})`;
@@ -366,6 +398,10 @@ export function useStudioPage() {
           body: asset.blob,
         });
         if (!response.ok) throw new Error(await response.text());
+      }
+      if (stateRef.current.activeId !== draft.id) {
+        setAssetStatus("图片已上传，但处理期间切换了文章；重新打开原文章后再切换资源路径。 ");
+        return;
       }
       const switchImagePaths = (body: string) => bodyAssets.reduce(
         (output, asset) => output.replaceAll(`/images/articles/${draft.slug}/${asset.filename}`, `/media/articles/${draft.slug}/${asset.filename}`),
@@ -438,6 +474,7 @@ export function useStudioPage() {
       const restored = await parseWorkspaceBackup(file);
       await replaceStudioWorkspace(restored.state, restored.assets);
       localStorage.setItem(storageKey, JSON.stringify(restored.state));
+      setLoadedAssetDraftId("");
       setState(restored.state);
       setStorageReady(true);
       setAssetReloadVersion((value) => value + 1);
@@ -463,6 +500,8 @@ export function useStudioPage() {
     theme,
     toggleTheme,
     state,
+    storageResolved,
+    assetsReady,
     locale,
     setLocale,
     coverAssets,

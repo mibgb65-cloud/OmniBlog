@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { useDeferredValue } from "react";
 import { downloadBlob, downloadMarkdown, emojis } from "../../studio/studioModel";
 import type { StudioPageModel } from "../../studio/useStudioPage";
 
@@ -66,6 +67,8 @@ export function StudioEditor({ studio }: StudioEditorProps) {
     completedLocales,
   } = studio;
   const activeCategory = state.categories.find((category) => category.id === draft.category);
+  const previewBody = useDeferredValue(draft.body[locale]);
+  const previewPending = previewBody !== draft.body[locale];
 
   return (
         <section className="studio-editor">
@@ -83,9 +86,9 @@ export function StudioEditor({ studio }: StudioEditorProps) {
               <section className="studio-panel studio-content-panel" aria-labelledby="studio-content-title">
                 <div className="studio-content-toolbar">
                   <div className="studio-panel-title"><span>CONTENT</span><h3 id="studio-content-title">文章内容</h3></div>
-                  <div className="studio-language-tabs" role="tablist" aria-label="文章语言">
-                    <button type="button" role="tab" aria-selected={locale === "zh"} className={locale === "zh" ? "is-active" : ""} onClick={() => setLocale("zh")}>中文</button>
-                    <button type="button" role="tab" aria-selected={locale === "en"} className={locale === "en" ? "is-active" : ""} onClick={() => setLocale("en")}>English <span>可后补</span></button>
+                  <div className="studio-language-tabs" role="group" aria-label="文章语言">
+                    <button type="button" aria-pressed={locale === "zh"} className={locale === "zh" ? "is-active" : ""} onClick={() => setLocale("zh")}>中文</button>
+                    <button type="button" aria-pressed={locale === "en"} className={locale === "en" ? "is-active" : ""} onClick={() => setLocale("en")}>English <span>可后补</span></button>
                   </div>
                 </div>
 
@@ -168,7 +171,7 @@ export function StudioEditor({ studio }: StudioEditorProps) {
               <section className="studio-panel studio-live-preview" aria-labelledby="studio-preview-title">
                 <div className="studio-live-preview-head">
                   <div><span>PREVIEW</span><h3 id="studio-preview-title"><Eye aria-hidden="true" />实时预览</h3></div>
-                  <span className="studio-live-indicator"><i aria-hidden="true" />同步中</span>
+                  <span className="studio-live-indicator"><i aria-hidden="true" />{previewPending ? "更新中…" : "已同步"}</span>
                 </div>
                 <article className="studio-preview-document">
                   <header>
@@ -186,7 +189,7 @@ export function StudioEditor({ studio }: StudioEditorProps) {
                         },
                       }}
                     >
-                      {draft.body[locale] || "正文会随着输入实时呈现。"}
+                      {previewBody || "正文会随着输入实时呈现。"}
                     </Markdown>
                   </div>
                 </article>

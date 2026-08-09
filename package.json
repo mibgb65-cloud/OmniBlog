@@ -9,8 +9,10 @@
     "test": "npm run check:lines && node --test worker/*.test.js",
     "build": "npm run check:lines && node scripts/generate-site.mjs && tsc --noEmit && vite build && node scripts/generate-site.mjs --static",
     "preview": "vite preview",
-    "cf:dev": "npm run build && wrangler dev",
-    "deploy": "npm run build && wrangler deploy"
+    "db:migrate:local": "wrangler d1 migrations apply DB --local",
+    "db:migrate": "wrangler d1 migrations apply omniblog-subscribers --remote",
+    "cf:dev": "npm run build && npm run db:migrate:local && wrangler dev",
+    "deploy": "npm run build && npm run db:migrate && wrangler deploy"
   },
   "cloudflare": {
     "bindings": {

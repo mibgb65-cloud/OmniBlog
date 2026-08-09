@@ -2,7 +2,7 @@
 .studio-article-main code {
   color: var(--color-text-light);
   font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .studio-article-category,
@@ -20,7 +20,7 @@
 
 .studio-article-category span {
   color: var(--color-text-light);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .studio-article-actions {
@@ -154,7 +154,7 @@
 
 .studio-taxonomy-panel-head > div > span {
   color: var(--color-text-light);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.1em;
 }
@@ -241,7 +241,7 @@
 .studio-taxonomy-content > div > span,
 .studio-taxonomy-content small {
   color: var(--color-text-light);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .studio-taxonomy-content p {
@@ -323,7 +323,6 @@
   width: 100%;
   border: 1px solid var(--color-border-soft);
   border-radius: 9px;
-  outline: 0;
   background: var(--color-background);
   color: var(--color-text-primary);
   font-size: 14px;
@@ -341,8 +340,8 @@
   line-height: 1.55;
 }
 
-.studio-taxonomy-form input:focus,
-.studio-taxonomy-form textarea:focus {
+.studio-taxonomy-form input:focus-visible,
+.studio-taxonomy-form textarea:focus-visible {
   border-color: var(--color-border);
   box-shadow: 0 0 0 3px var(--color-border-soft);
 }
@@ -415,7 +414,7 @@
 .studio-editor-head p {
   margin: 12px 0 0;
   color: var(--color-text-muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .studio-delete {
@@ -426,5 +425,5 @@
   background: transparent;
   color: var(--color-text-muted);
   cursor: pointer;
-  font-size: 11px;
+  font-size: 12px;
 }

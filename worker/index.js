@@ -1,11 +1,18 @@
 const json = (data, status = 200) => new Response(JSON.stringify(data), {
   status,
-  headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
+  headers: {
+    "content-type": "application/json; charset=utf-8",
+    "cache-control": "no-store",
+    "referrer-policy": "no-referrer",
+    "x-content-type-options": "nosniff",
+  },
 });
 
 const studioCookie = "omniblog_studio";
 const studioSessionSeconds = 12 * 60 * 60;
 const studioCsrfSeconds = 10 * 60;
+const maxMediaBytes = 15 * 1024 * 1024;
+const mutableMediaCacheControl = "public, max-age=0, must-revalidate";
 const encoder = new TextEncoder();
 
 function base64UrlEncode(value) {
@@ -109,6 +116,19 @@ function isSameOrigin(request) {
   return !origin || origin === new URL(request.url).origin;
 }
 
+async function enforceRateLimit(binding, key) {
+  if (!binding?.limit) return null;
+  try {
+    const { success } = await binding.limit({ key });
+    if (success) return null;
+  } catch {
+    return null;
+  }
+  const response = json({ error: "Too many requests. Please try again later." }, 429);
+  response.headers.set("retry-after", "60");
+  return response;
+}
+
 async function studioLoginPage(env, message = "", status = 401) {
   const csrfToken = env.STUDIO_TOKEN ? await createStudioCsrf(env.STUDIO_TOKEN) : "";
   const feedback = message ? `<p class="feedback" role="alert">${message}</p>` : "";
@@ -125,12 +145,12 @@ async function studioLoginPage(env, message = "", status = 401) {
     *{box-sizing:border-box}body{min-width:320px;min-height:100vh;margin:0;display:grid;place-items:center;padding:24px;background:#f5f5f7}
     main{width:min(100%,420px);padding:34px;border:1px solid rgba(0,0,0,.08);border-radius:22px;background:#fff;box-shadow:0 24px 70px rgba(0,0,0,.08)}
     .mark{display:grid;place-items:center;width:48px;height:48px;border-radius:14px;background:#1d1d1f;color:#f5f5f7}.mark svg{width:22px;height:22px}
-    .eyebrow{margin:28px 0 8px;color:#86868b;font-size:10px;font-weight:700;letter-spacing:.12em}.eyebrow,h1{text-transform:uppercase}
+    .eyebrow{margin:28px 0 8px;color:#86868b;font-size:12px;font-weight:700;letter-spacing:.12em}.eyebrow,h1{text-transform:uppercase}
     h1{margin:0;font-size:36px;letter-spacing:-.055em;line-height:1.05}main>p:not(.eyebrow):not(.feedback){margin:14px 0 28px;color:#6e6e73;font-size:13px;line-height:1.65}
-    label{display:grid;gap:9px;color:#6e6e73;font-size:11px;font-weight:650}input{width:100%;min-height:48px;padding:0 14px;border:1px solid #d2d2d7;border-radius:11px;background:#f5f5f7;color:#1d1d1f;font:inherit;outline:0}input:focus{border-color:#6e6e73;box-shadow:0 0 0 3px rgba(0,0,0,.07)}
+    label{display:grid;gap:9px;color:#6e6e73;font-size:12px;font-weight:650}input{width:100%;min-height:48px;padding:0 14px;border:1px solid #d2d2d7;border-radius:11px;background:#f5f5f7;color:#1d1d1f;font:inherit}input:focus-visible{border-color:#6e6e73;outline:2px solid #1d1d1f;outline-offset:2px;box-shadow:0 0 0 3px rgba(0,0,0,.07)}
     button{width:100%;min-height:48px;margin-top:14px;border:0;border-radius:999px;background:#1d1d1f;color:#f5f5f7;cursor:pointer;font:inherit;font-size:12px;font-weight:700}.feedback{margin:0 0 16px;color:#b42318;font-size:12px;line-height:1.5}
-    footer{margin-top:24px;padding-top:18px;border-top:1px solid rgba(0,0,0,.07);color:#86868b;font-size:10px;line-height:1.5}
-    @media(prefers-color-scheme:dark){:root,body{background:#0c0c0d;color:#f5f5f7}main{border-color:rgba(255,255,255,.1);background:#161617;box-shadow:0 24px 70px rgba(0,0,0,.32)}.mark{background:#f5f5f7;color:#1d1d1f}main>p:not(.eyebrow):not(.feedback),label{color:#a1a1a6}input{border-color:#3a3a3c;background:#0c0c0d;color:#f5f5f7}input:focus{border-color:#86868b;box-shadow:0 0 0 3px rgba(255,255,255,.1)}button{background:#f5f5f7;color:#1d1d1f}footer{border-color:rgba(255,255,255,.1)}}
+    footer{margin-top:24px;padding-top:18px;border-top:1px solid rgba(0,0,0,.07);color:#86868b;font-size:12px;line-height:1.5}
+    @media(prefers-color-scheme:dark){:root,body{background:#0c0c0d;color:#f5f5f7}main{border-color:rgba(255,255,255,.1);background:#161617;box-shadow:0 24px 70px rgba(0,0,0,.32)}.mark{background:#f5f5f7;color:#1d1d1f}main>p:not(.eyebrow):not(.feedback),label{color:#a1a1a6}input{border-color:#3a3a3c;background:#0c0c0d;color:#f5f5f7}input:focus-visible{border-color:#86868b;outline-color:#f5f5f7;box-shadow:0 0 0 3px rgba(255,255,255,.1)}button{background:#f5f5f7;color:#1d1d1f}footer{border-color:rgba(255,255,255,.1)}}
   </style>
 </head>
 <body>
@@ -168,6 +188,8 @@ async function isStudioAuthenticated(request, env) {
 
 async function loginStudio(request, env) {
   if (!env.STUDIO_TOKEN) return studioLoginPage(env, "服务器尚未配置 STUDIO_TOKEN。", 503);
+  const limited = await enforceRateLimit(env.STUDIO_LOGIN_RATE_LIMITER, "studio-login");
+  if (limited) return limited;
   let form;
   try {
     form = await request.formData();
@@ -215,6 +237,9 @@ async function subscribe(request, env) {
   if (request.headers.get("sec-fetch-site") === "cross-site") {
     return json({ error: "Cross-site requests are not allowed." }, 403);
   }
+  const actor = request.headers.get("cf-connecting-ip") ?? "unknown";
+  const limited = await enforceRateLimit(env.NEWSLETTER_RATE_LIMITER, actor);
+  if (limited) return limited;
 
   let body;
   try {
@@ -226,23 +251,18 @@ async function subscribe(request, env) {
   const email = typeof body.email === "string" ? body.email.trim().toLocaleLowerCase() : "";
   const locale = body.locale === "en" ? "en" : "zh";
   if (!validEmail(email)) return json({ error: "Invalid email address." }, 400);
+  if (!env.DB) return json({ error: "Newsletter storage is not configured." }, 503);
 
-  await env.DB.prepare(`
-    CREATE TABLE IF NOT EXISTS subscribers (
-      email TEXT PRIMARY KEY,
-      locale TEXT NOT NULL DEFAULT 'zh',
-      status TEXT NOT NULL DEFAULT 'active',
-      source TEXT NOT NULL DEFAULT 'website',
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    )
-  `).run();
   const now = new Date().toISOString();
-  await env.DB.prepare(`
-    INSERT INTO subscribers (email, locale, status, source, created_at, updated_at)
-    VALUES (?, ?, 'active', 'website', ?, ?)
-    ON CONFLICT(email) DO UPDATE SET locale = excluded.locale, status = 'active', updated_at = excluded.updated_at
-  `).bind(email, locale, now, now).run();
+  try {
+    await env.DB.prepare(`
+      INSERT INTO subscribers (email, locale, status, source, created_at, updated_at)
+      VALUES (?, ?, 'active', 'website', ?, ?)
+      ON CONFLICT(email) DO UPDATE SET locale = excluded.locale, status = 'active', updated_at = excluded.updated_at
+    `).bind(email, locale, now, now).run();
+  } catch {
+    return json({ error: "Newsletter storage is temporarily unavailable." }, 503);
+  }
   return json({ ok: true }, 201);
 }
 
@@ -263,29 +283,59 @@ async function uploadMedia(request, env, pathname) {
     && authorization.startsWith("Bearer ")
     && await secureEqual(authorization.slice(7), env.ADMIN_TOKEN);
   if (!bearerAllowed && !await isStudioAuthenticated(request, env)) return json({ error: "Unauthorized." }, 401);
+  const actor = request.headers.get("cf-connecting-ip") ?? "unknown";
+  const limited = await enforceRateLimit(env.MEDIA_RATE_LIMITER, actor);
+  if (limited) return limited;
   const key = mediaKey(pathname, "/api/media/");
   if (!key || !request.body) return json({ error: "Invalid media path." }, 400);
   const contentLength = Number(request.headers.get("content-length") ?? 0);
-  if (contentLength > 15 * 1024 * 1024) return json({ error: "Image is too large." }, 413);
+  if (contentLength > maxMediaBytes) return json({ error: "Image is too large." }, 413);
   const contentType = request.headers.get("content-type") ?? "application/octet-stream";
   if (!contentType.startsWith("image/")) return json({ error: "Only images are accepted." }, 415);
+  if (!env.MEDIA) return json({ error: "Media storage is not configured." }, 503);
 
-  const object = await env.MEDIA.put(key, request.body, {
-    httpMetadata: { contentType, cacheControl: "public, max-age=31536000, immutable" },
-  });
+  let body;
+  try {
+    body = await request.arrayBuffer();
+  } catch {
+    return json({ error: "Invalid image body." }, 400);
+  }
+  if (!body.byteLength) return json({ error: "Image is empty." }, 400);
+  if (body.byteLength > maxMediaBytes) return json({ error: "Image is too large." }, 413);
+
+  let object;
+  try {
+    object = await env.MEDIA.put(key, body, {
+      httpMetadata: { contentType, cacheControl: mutableMediaCacheControl },
+    });
+  } catch {
+    return json({ error: "Media storage is temporarily unavailable." }, 503);
+  }
   return json({ ok: true, key, etag: object.httpEtag }, 201);
 }
 
 async function serveMedia(request, env, pathname) {
   const key = mediaKey(pathname, "/media/");
   if (!key) return new Response("Not found", { status: 404 });
+  if (!env.MEDIA) return new Response("Not found", { status: 404 });
+  if (request.method === "HEAD") {
+    const object = await env.MEDIA.head(key);
+    if (!object) return new Response("Not found", { status: 404 });
+    const headers = new Headers();
+    object.writeHttpMetadata(headers);
+    headers.set("etag", object.httpEtag);
+    headers.set("cache-control", mutableMediaCacheControl);
+    headers.set("content-length", String(object.size));
+    headers.set("x-content-type-options", "nosniff");
+    return new Response(null, { headers });
+  }
   const object = await env.MEDIA.get(key, { onlyIf: request.headers });
   if (!object) return new Response("Not found", { status: 404 });
   if (!object.body) return new Response(null, { status: 304, headers: { etag: object.httpEtag } });
   const headers = new Headers();
   object.writeHttpMetadata(headers);
   headers.set("etag", object.httpEtag);
-  headers.set("cache-control", "public, max-age=31536000, immutable");
+  headers.set("cache-control", mutableMediaCacheControl);
   headers.set("x-content-type-options", "nosniff");
   return new Response(object.body, { headers });
 }
@@ -306,7 +356,7 @@ export default {
     }
     if (url.pathname === "/api/newsletter" && request.method === "POST") return subscribe(request, env);
     if (url.pathname.startsWith("/api/media/") && request.method === "PUT") return uploadMedia(request, env, url.pathname);
-    if (url.pathname.startsWith("/media/") && request.method === "GET") return serveMedia(request, env, url.pathname);
+    if (url.pathname.startsWith("/media/") && (request.method === "GET" || request.method === "HEAD")) return serveMedia(request, env, url.pathname);
     if (url.pathname === "/api/health") return json({ ok: true });
     if (url.pathname.startsWith("/api/")) return json({ error: "Not found." }, 404);
     return env.ASSETS.fetch(request);

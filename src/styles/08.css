@@ -33,15 +33,16 @@
 
 .studio-panel-title {
   display: grid;
-  grid-template-columns: 64px 1fr;
+  grid-template-columns: 78px 1fr;
   align-items: baseline;
+  column-gap: 10px;
   padding-bottom: 20px;
   border-bottom: 1px solid var(--color-border-soft);
 }
 
 .studio-panel-title span {
   color: var(--color-text-light);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 650;
   letter-spacing: 0.08em;
 }
@@ -62,7 +63,7 @@
   display: grid;
   gap: 9px;
   color: var(--color-text-muted);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
 }
 
@@ -74,7 +75,6 @@
   border-radius: 10px;
   background: var(--color-background);
   color: var(--color-text-primary);
-  outline: 0;
   transition: border-color 180ms ease-out, box-shadow 180ms ease-out;
 }
 
@@ -129,9 +129,9 @@
   resize: vertical;
 }
 
-.studio-panel input:focus,
-.studio-panel select:focus,
-.studio-panel textarea:focus {
+.studio-panel input:focus-visible,
+.studio-panel select:focus-visible,
+.studio-panel textarea:focus-visible {
   border-color: var(--color-text-muted);
   box-shadow: 0 0 0 3px var(--color-border-soft);
 }
@@ -150,7 +150,7 @@
   background: transparent;
   color: var(--color-text-muted);
   cursor: pointer;
-  font-size: 11px;
+  font-size: 12px;
   transition: background-color 180ms ease-out, color 180ms ease-out;
 }
 
@@ -215,7 +215,7 @@
 
 .studio-body-field small {
   color: var(--color-text-light);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 500;
 }
 
@@ -254,7 +254,7 @@
   background: transparent;
   color: var(--color-text-primary);
   cursor: pointer;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   transition: background-color 160ms ease-out;
 }
@@ -279,7 +279,7 @@
   margin-left: auto;
   padding-right: 6px;
   color: var(--color-text-light);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 500;
 }
 
@@ -304,7 +304,7 @@
   display: block;
   margin-bottom: 10px;
   color: var(--color-text-muted);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
 }
 
@@ -428,7 +428,7 @@
 
 .studio-dropzone span {
   max-width: 240px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 400;
   line-height: 1.5;
 }

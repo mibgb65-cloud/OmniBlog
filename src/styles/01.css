@@ -192,11 +192,19 @@ svg {
 }
 
 .page-loader {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
   min-height: 70vh;
   padding-top: 180px;
   color: var(--color-text-muted);
   font-size: 12px;
   text-align: center;
+}
+
+.page-loader svg {
+  width: 16px;
+  height: 16px;
 }
 
 main {

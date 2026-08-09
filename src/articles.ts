@@ -106,9 +106,15 @@ function buildStories(): Story[] {
       series: {},
     };
 
-    if (existing.date !== meta.date || existing.categoryId !== meta.category || existing.coverSrc !== meta.cover) {
+    if (
+      existing.date !== meta.date
+      || existing.categoryId !== meta.category
+      || existing.coverSrc !== meta.cover
+      || existing.readMinutes !== meta.readMinutes
+    ) {
       throw new Error(`Localized metadata does not match for '${meta.slug}'`);
     }
+    if (existing.title[locale]) throw new Error(`Duplicate ${locale} article for '${meta.slug}'`);
     existing.title[locale] = meta.title;
     existing.summary[locale] = meta.summary;
     existing.body[locale] = body;

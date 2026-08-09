@@ -36,7 +36,7 @@
 
 .studio-assets span {
   overflow: hidden;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   text-overflow: ellipsis;
 }
@@ -45,7 +45,7 @@
   display: block;
   margin-top: 4px;
   color: var(--color-text-light);
-  font-size: 8px;
+  font-size: 12px;
 }
 
 .studio-assets svg {
@@ -91,7 +91,7 @@
   border: 1px solid var(--color-border-soft);
   border-radius: 8px;
   color: var(--color-text-muted);
-  font-size: 10px;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -109,7 +109,7 @@
   background: var(--color-text-primary);
   color: var(--color-background);
   cursor: pointer;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
 }
 
@@ -133,7 +133,7 @@
 .studio-cloud-upload p {
   margin: 0;
   color: var(--color-text-muted);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.55;
 }
 
@@ -154,7 +154,7 @@
   min-height: 38px;
   color: var(--color-text-primary);
   cursor: pointer;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 650;
   list-style: none;
 }
@@ -223,20 +223,20 @@
 
 .studio-category-item strong {
   color: var(--color-text-primary);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .studio-category-item strong span {
   margin-left: 6px;
   color: var(--color-text-light);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 500;
 }
 
 .studio-category-item small {
   margin-top: 4px;
   color: var(--color-text-light);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .studio-category-item button {
@@ -285,12 +285,12 @@
 
 .studio-category-form-head strong {
   color: var(--color-text-primary);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .studio-category-form-head span {
   color: var(--color-text-light);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .studio-category-name-grid {
@@ -309,7 +309,7 @@
   background: var(--color-text-primary);
   color: var(--color-background);
   cursor: pointer;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 650;
   transition: opacity 180ms ease-out, transform 180ms var(--ease-editorial);
 }
@@ -328,7 +328,7 @@
   min-height: 16px;
   margin: 10px 0 0;
   color: var(--color-text-muted);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
@@ -340,7 +340,7 @@
   min-height: 18px;
   margin: 12px 0 0;
   color: var(--color-text-muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .studio-export {
@@ -362,7 +362,7 @@
 .studio-export p,
 .studio-export small {
   color: #86868b;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .studio-export > div:last-child {

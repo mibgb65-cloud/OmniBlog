@@ -21,8 +21,9 @@ const codeExtensions = new Set([
   ".cxx", ".go", ".h", ".hpp", ".html", ".java", ".js", ".json", ".jsonc",
   ".jsx", ".kt", ".kts", ".less", ".mjs", ".php", ".ps1", ".py", ".rb",
   ".rs", ".sass", ".scss", ".sh", ".svelte", ".swift", ".toml", ".ts",
-  ".tsx", ".vue", ".yaml", ".yml",
+  ".tsx", ".vue", ".yaml", ".yml", ".sql",
 ]);
+const codeFileNames = new Set(["Dockerfile", "_headers", "_redirects"]);
 
 async function collectCodeFiles(directory) {
   const files = [];
@@ -33,7 +34,7 @@ async function collectCodeFiles(directory) {
       continue;
     }
     if (!entry.isFile() || ignoredFiles.has(entry.name)) continue;
-    if (codeExtensions.has(extname(entry.name).toLocaleLowerCase())) files.push(join(directory, entry.name));
+    if (codeFileNames.has(entry.name) || codeExtensions.has(extname(entry.name).toLocaleLowerCase())) files.push(join(directory, entry.name));
   }
   return files;
 }

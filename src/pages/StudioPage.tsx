@@ -37,10 +37,23 @@ export function StudioPage() {
     addDraft,
     setView,
     state,
+    storageResolved,
+    assetsReady,
     openDraft,
     backupWorkspace,
     restoreWorkspace,
   } = studio;
+
+  if (!storageResolved || !assetsReady) {
+    return (
+      <main className="studio-page">
+        <div className="page-loader" role="status" aria-live="polite">
+          <LoaderCircle className="is-spinning" aria-hidden="true" />
+          {storageResolved ? "正在载入文章图片…" : "正在恢复草稿与图片…"}
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="studio-page">

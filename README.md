@@ -222,7 +222,15 @@ npx wrangler secret put ADMIN_TOKEN
 npm run deploy
 ```
 
-首次部署后，将 Cloudflare 提供的正式地址写入 `content/site.json`，再部署一次以生成正确的 Canonical、RSS 和 Sitemap 地址。
+部署前确认 `content/site.json` 的 `siteUrl` 是正式公开域名；构建会用它生成 Canonical、RSS 和 Sitemap。域名不是密钥，可以安全保存在公开仓库。
+
+`npm run deploy` 会先执行 D1 migrations，再部署 Worker。需要单独迁移数据库时可运行：
+
+```bash
+npm run db:migrate
+```
+
+静态页面的安全响应头和哈希资源长缓存由 `public/_headers` 管理。
 
 ## 目录结构
 

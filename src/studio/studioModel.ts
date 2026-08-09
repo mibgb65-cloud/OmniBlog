@@ -104,6 +104,11 @@ export const emojis = [
 ] as const;
 
 export const storageKey = "omniblog-studio-drafts-v1";
+const maxBackupFileBytes = 128 * 1024 * 1024;
+const maxBackupExtractedBytes = 256 * 1024 * 1024;
+const maxBackupEntries = 2_000;
+const maxSourceImageBytes = 30 * 1024 * 1024;
+const maxSourceImagePixels = 80_000_000;
 export const emptyCategoryForm: CategoryForm = {
   id: "",
   nameZh: "",
@@ -126,7 +131,7 @@ export function createDraft(category = defaultCategories[0]?.id ?? "notes"): Stu
   return {
     id,
     slug: "",
-    date: new Date().toISOString().slice(0, 10),
+    date: new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()),
     category,
     readMinutes: 6,
     cover: "",
@@ -259,7 +264,18 @@ export function zipFiles(files: Record<string, Uint8Array>) {
 
 export function unzipFiles(archive: Uint8Array) {
   return new Promise<Record<string, Uint8Array>>((resolve, reject) => {
-    unzip(archive, (error, files) => error ? reject(error) : resolve(files));
+    let extractedBytes = 0;
+    let entryCount = 0;
+    unzip(archive, {
+      filter: (entry) => {
+        entryCount += 1;
+        extractedBytes += entry.originalSize;
+        if (entryCount > maxBackupEntries || extractedBytes > maxBackupExtractedBytes) {
+          throw new Error("备份内容过大。 ");
+        }
+        return true;
+      },
+    }, (error, files) => error ? reject(error) : resolve(files));
   });
 }
 
@@ -292,6 +308,31 @@ export function isStudioSeries(value: unknown): value is StudioSeries {
   return typeof series.id === "string"
     && /^[a-z0-9-]+$/.test(series.id)
     && isLocalizedDraft(series.name);
+}
+
+function isBackupImageMeta(value: unknown, body: boolean) {
+  if (!value || typeof value !== "object") return false;
+  const asset = value as Partial<BackupBodyImageMeta>;
+  return typeof asset.filename === "string"
+    && /^[a-z0-9][a-z0-9.-]*$/.test(asset.filename)
+    && typeof asset.path === "string"
+    && typeof asset.width === "number"
+    && Number.isFinite(asset.width)
+    && asset.width > 0
+    && typeof asset.height === "number"
+    && Number.isFinite(asset.height)
+    && asset.height > 0
+    && (!body || typeof asset.alt === "string");
+}
+
+function isBackupAssetRecord(value: unknown): value is StudioBackupManifest["assets"][number] {
+  if (!value || typeof value !== "object") return false;
+  const record = value as Partial<StudioBackupManifest["assets"][number]>;
+  if (typeof record.draftId !== "string" || !Array.isArray(record.cover) || !Array.isArray(record.body)) return false;
+  return record.cover.every((asset) => isBackupImageMeta(asset, false)
+      && asset.path === `assets/${record.draftId}/cover/${asset.filename}`)
+    && record.body.every((asset) => isBackupImageMeta(asset, true)
+      && asset.path === `assets/${record.draftId}/body/${asset.filename}`);
 }
 
 export function isStudioDraft(value: unknown): value is StudioDraft {
@@ -382,12 +423,18 @@ export async function createWorkspaceBackup(state: StudioState, storedAssets: St
 }
 
 export async function parseWorkspaceBackup(file: File) {
+  if (file.size > maxBackupFileBytes) throw new Error("备份文件过大。 ");
   const files = await unzipFiles(new Uint8Array(await file.arrayBuffer()));
   if (!files["workspace.json"]) throw new Error("备份缺少 workspace.json。 ");
   const manifest = JSON.parse(strFromU8(files["workspace.json"])) as StudioBackupManifest;
   const normalizedState = normalizeStudioState(manifest.state);
-  if (manifest.version !== 1 || !normalizedState || !Array.isArray(manifest.assets)) {
+  if (manifest.version !== 1 || !normalizedState || !Array.isArray(manifest.assets) || !manifest.assets.every(isBackupAssetRecord)) {
     throw new Error("备份格式无效。 ");
+  }
+  const draftIds = new Set(normalizedState.drafts.map((draft) => draft.id));
+  if (new Set(manifest.assets.map((record) => record.draftId)).size !== manifest.assets.length
+    || manifest.assets.some((record) => !draftIds.has(record.draftId))) {
+    throw new Error("备份图片与草稿不匹配。 ");
   }
   const assets: StoredDraftAssets[] = manifest.assets.map((record) => ({
     draftId: record.draftId,
@@ -406,14 +453,24 @@ export async function parseWorkspaceBackup(file: File) {
 }
 
 export async function resizeImage(file: File, width: number, height?: number): Promise<ImageAsset> {
+  if (!file.type.startsWith("image/") || !file.size || file.size > maxSourceImageBytes) {
+    throw new Error("Image file is invalid or too large");
+  }
   const bitmap = await createImageBitmap(file);
+  if (bitmap.width * bitmap.height > maxSourceImagePixels) {
+    bitmap.close();
+    throw new Error("Image dimensions are too large");
+  }
   const targetHeight = height ?? Math.max(1, Math.round(bitmap.height * Math.min(1, width / bitmap.width)));
   const targetWidth = height ? width : Math.min(width, bitmap.width);
   const canvas = document.createElement("canvas");
   canvas.width = targetWidth;
   canvas.height = targetHeight;
   const context = canvas.getContext("2d");
-  if (!context) throw new Error("Canvas is not available");
+  if (!context) {
+    bitmap.close();
+    throw new Error("Canvas is not available");
+  }
 
   if (height) {
     const scale = Math.max(targetWidth / bitmap.width, targetHeight / bitmap.height);

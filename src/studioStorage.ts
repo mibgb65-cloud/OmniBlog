@@ -24,16 +24,27 @@ let databasePromise: Promise<IDBDatabase> | null = null;
 
 function openDatabase() {
   if (databasePromise) return databasePromise;
-  databasePromise = new Promise<IDBDatabase>((resolve, reject) => {
+  const attempt = new Promise<IDBDatabase>((resolve, reject) => {
     const request = indexedDB.open(databaseName, databaseVersion);
     request.onupgradeneeded = () => {
       const database = request.result;
       if (!database.objectStoreNames.contains(workspaceStore)) database.createObjectStore(workspaceStore);
       if (!database.objectStoreNames.contains(assetsStore)) database.createObjectStore(assetsStore, { keyPath: "draftId" });
     };
-    request.onsuccess = () => resolve(request.result);
+    request.onsuccess = () => {
+      const database = request.result;
+      database.onversionchange = () => {
+        database.close();
+        databasePromise = null;
+      };
+      resolve(database);
+    };
     request.onerror = () => reject(request.error ?? new Error("无法打开写作台存储。"));
     request.onblocked = () => reject(new Error("写作台存储正在被其他标签页占用。"));
+  });
+  databasePromise = attempt.catch((error) => {
+    databasePromise = null;
+    throw error;
   });
   return databasePromise;
 }
