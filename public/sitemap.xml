@@ -1,143 +1,143 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
-    <loc>https://example.com/zh</loc>
-    <xhtml:link rel="alternate" hreflang="zh" href="https://example.com/zh" />
-    <xhtml:link rel="alternate" hreflang="en" href="https://example.com/en" />
+    <loc>https://omniblog.mibgb65.workers.dev/zh</loc>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://omniblog.mibgb65.workers.dev/zh" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://omniblog.mibgb65.workers.dev/en" />
   </url>
   <url>
-    <loc>https://example.com/en</loc>
-    <xhtml:link rel="alternate" hreflang="en" href="https://example.com/en" />
-    <xhtml:link rel="alternate" hreflang="zh" href="https://example.com/zh" />
+    <loc>https://omniblog.mibgb65.workers.dev/en</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://omniblog.mibgb65.workers.dev/en" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://omniblog.mibgb65.workers.dev/zh" />
   </url>
   <url>
-    <loc>https://example.com/zh/stories</loc>
-    <xhtml:link rel="alternate" hreflang="zh" href="https://example.com/zh/stories" />
-    <xhtml:link rel="alternate" hreflang="en" href="https://example.com/en/stories" />
+    <loc>https://omniblog.mibgb65.workers.dev/zh/stories</loc>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://omniblog.mibgb65.workers.dev/zh/stories" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://omniblog.mibgb65.workers.dev/en/stories" />
   </url>
   <url>
-    <loc>https://example.com/en/stories</loc>
-    <xhtml:link rel="alternate" hreflang="en" href="https://example.com/en/stories" />
-    <xhtml:link rel="alternate" hreflang="zh" href="https://example.com/zh/stories" />
+    <loc>https://omniblog.mibgb65.workers.dev/en/stories</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://omniblog.mibgb65.workers.dev/en/stories" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://omniblog.mibgb65.workers.dev/zh/stories" />
   </url>
   <url>
-    <loc>https://example.com/zh/about</loc>
-    <xhtml:link rel="alternate" hreflang="zh" href="https://example.com/zh/about" />
-    <xhtml:link rel="alternate" hreflang="en" href="https://example.com/en/about" />
+    <loc>https://omniblog.mibgb65.workers.dev/zh/about</loc>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://omniblog.mibgb65.workers.dev/zh/about" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://omniblog.mibgb65.workers.dev/en/about" />
   </url>
   <url>
-    <loc>https://example.com/en/about</loc>
-    <xhtml:link rel="alternate" hreflang="en" href="https://example.com/en/about" />
-    <xhtml:link rel="alternate" hreflang="zh" href="https://example.com/zh/about" />
+    <loc>https://omniblog.mibgb65.workers.dev/en/about</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://omniblog.mibgb65.workers.dev/en/about" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://omniblog.mibgb65.workers.dev/zh/about" />
   </url>
   <url>
-    <loc>https://example.com/zh/stories/category/design</loc>
-    <xhtml:link rel="alternate" hreflang="zh" href="https://example.com/zh/stories/category/design" />
-    <xhtml:link rel="alternate" hreflang="en" href="https://example.com/en/stories/category/design" />
+    <loc>https://omniblog.mibgb65.workers.dev/zh/stories/category/design</loc>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://omniblog.mibgb65.workers.dev/zh/stories/category/design" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://omniblog.mibgb65.workers.dev/en/stories/category/design" />
   </url>
   <url>
-    <loc>https://example.com/en/stories/category/design</loc>
-    <xhtml:link rel="alternate" hreflang="en" href="https://example.com/en/stories/category/design" />
-    <xhtml:link rel="alternate" hreflang="zh" href="https://example.com/zh/stories/category/design" />
+    <loc>https://omniblog.mibgb65.workers.dev/en/stories/category/design</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://omniblog.mibgb65.workers.dev/en/stories/category/design" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://omniblog.mibgb65.workers.dev/zh/stories/category/design" />
   </url>
   <url>
-    <loc>https://example.com/zh/stories/category/editorial</loc>
-    <xhtml:link rel="alternate" hreflang="zh" href="https://example.com/zh/stories/category/editorial" />
-    <xhtml:link rel="alternate" hreflang="en" href="https://example.com/en/stories/category/editorial" />
+    <loc>https://omniblog.mibgb65.workers.dev/zh/stories/category/editorial</loc>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://omniblog.mibgb65.workers.dev/zh/stories/category/editorial" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://omniblog.mibgb65.workers.dev/en/stories/category/editorial" />
   </url>
   <url>
-    <loc>https://example.com/en/stories/category/editorial</loc>
-    <xhtml:link rel="alternate" hreflang="en" href="https://example.com/en/stories/category/editorial" />
-    <xhtml:link rel="alternate" hreflang="zh" href="https://example.com/zh/stories/category/editorial" />
+    <loc>https://omniblog.mibgb65.workers.dev/en/stories/category/editorial</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://omniblog.mibgb65.workers.dev/en/stories/category/editorial" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://omniblog.mibgb65.workers.dev/zh/stories/category/editorial" />
   </url>
   <url>
-    <loc>https://example.com/zh/stories/category/culture</loc>
-    <xhtml:link rel="alternate" hreflang="zh" href="https://example.com/zh/stories/category/culture" />
-    <xhtml:link rel="alternate" hreflang="en" href="https://example.com/en/stories/category/culture" />
+    <loc>https://omniblog.mibgb65.workers.dev/zh/stories/category/culture</loc>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://omniblog.mibgb65.workers.dev/zh/stories/category/culture" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://omniblog.mibgb65.workers.dev/en/stories/category/culture" />
   </url>
   <url>
-    <loc>https://example.com/en/stories/category/culture</loc>
-    <xhtml:link rel="alternate" hreflang="en" href="https://example.com/en/stories/category/culture" />
-    <xhtml:link rel="alternate" hreflang="zh" href="https://example.com/zh/stories/category/culture" />
+    <loc>https://omniblog.mibgb65.workers.dev/en/stories/category/culture</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://omniblog.mibgb65.workers.dev/en/stories/category/culture" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://omniblog.mibgb65.workers.dev/zh/stories/category/culture" />
   </url>
   <url>
-    <loc>https://example.com/zh/stories/category/technology</loc>
-    <xhtml:link rel="alternate" hreflang="zh" href="https://example.com/zh/stories/category/technology" />
-    <xhtml:link rel="alternate" hreflang="en" href="https://example.com/en/stories/category/technology" />
+    <loc>https://omniblog.mibgb65.workers.dev/zh/stories/category/technology</loc>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://omniblog.mibgb65.workers.dev/zh/stories/category/technology" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://omniblog.mibgb65.workers.dev/en/stories/category/technology" />
   </url>
   <url>
-    <loc>https://example.com/en/stories/category/technology</loc>
-    <xhtml:link rel="alternate" hreflang="en" href="https://example.com/en/stories/category/technology" />
-    <xhtml:link rel="alternate" hreflang="zh" href="https://example.com/zh/stories/category/technology" />
+    <loc>https://omniblog.mibgb65.workers.dev/en/stories/category/technology</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://omniblog.mibgb65.workers.dev/en/stories/category/technology" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://omniblog.mibgb65.workers.dev/zh/stories/category/technology" />
   </url>
   <url>
-    <loc>https://example.com/zh/stories/category/notes</loc>
-    <xhtml:link rel="alternate" hreflang="zh" href="https://example.com/zh/stories/category/notes" />
-    <xhtml:link rel="alternate" hreflang="en" href="https://example.com/en/stories/category/notes" />
+    <loc>https://omniblog.mibgb65.workers.dev/zh/stories/category/notes</loc>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://omniblog.mibgb65.workers.dev/zh/stories/category/notes" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://omniblog.mibgb65.workers.dev/en/stories/category/notes" />
   </url>
   <url>
-    <loc>https://example.com/en/stories/category/notes</loc>
-    <xhtml:link rel="alternate" hreflang="en" href="https://example.com/en/stories/category/notes" />
-    <xhtml:link rel="alternate" hreflang="zh" href="https://example.com/zh/stories/category/notes" />
+    <loc>https://omniblog.mibgb65.workers.dev/en/stories/category/notes</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://omniblog.mibgb65.workers.dev/en/stories/category/notes" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://omniblog.mibgb65.workers.dev/zh/stories/category/notes" />
   </url>
   <url>
-    <loc>https://example.com/zh/stories/the-art-of-less</loc>
-    <xhtml:link rel="alternate" hreflang="zh" href="https://example.com/zh/stories/the-art-of-less" />
-    <xhtml:link rel="alternate" hreflang="en" href="https://example.com/en/stories/the-art-of-less" />
+    <loc>https://omniblog.mibgb65.workers.dev/zh/stories/the-art-of-less</loc>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://omniblog.mibgb65.workers.dev/zh/stories/the-art-of-less" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://omniblog.mibgb65.workers.dev/en/stories/the-art-of-less" />
     <lastmod>2026-08-06</lastmod>
   </url>
   <url>
-    <loc>https://example.com/en/stories/the-art-of-less</loc>
-    <xhtml:link rel="alternate" hreflang="en" href="https://example.com/en/stories/the-art-of-less" />
-    <xhtml:link rel="alternate" hreflang="zh" href="https://example.com/zh/stories/the-art-of-less" />
+    <loc>https://omniblog.mibgb65.workers.dev/en/stories/the-art-of-less</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://omniblog.mibgb65.workers.dev/en/stories/the-art-of-less" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://omniblog.mibgb65.workers.dev/zh/stories/the-art-of-less" />
     <lastmod>2026-08-06</lastmod>
   </url>
   <url>
-    <loc>https://example.com/zh/stories/a-homepage-has-a-tone</loc>
-    <xhtml:link rel="alternate" hreflang="zh" href="https://example.com/zh/stories/a-homepage-has-a-tone" />
-    <xhtml:link rel="alternate" hreflang="en" href="https://example.com/en/stories/a-homepage-has-a-tone" />
+    <loc>https://omniblog.mibgb65.workers.dev/zh/stories/a-homepage-has-a-tone</loc>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://omniblog.mibgb65.workers.dev/zh/stories/a-homepage-has-a-tone" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://omniblog.mibgb65.workers.dev/en/stories/a-homepage-has-a-tone" />
     <lastmod>2026-07-28</lastmod>
   </url>
   <url>
-    <loc>https://example.com/en/stories/a-homepage-has-a-tone</loc>
-    <xhtml:link rel="alternate" hreflang="en" href="https://example.com/en/stories/a-homepage-has-a-tone" />
-    <xhtml:link rel="alternate" hreflang="zh" href="https://example.com/zh/stories/a-homepage-has-a-tone" />
+    <loc>https://omniblog.mibgb65.workers.dev/en/stories/a-homepage-has-a-tone</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://omniblog.mibgb65.workers.dev/en/stories/a-homepage-has-a-tone" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://omniblog.mibgb65.workers.dev/zh/stories/a-homepage-has-a-tone" />
     <lastmod>2026-07-28</lastmod>
   </url>
   <url>
-    <loc>https://example.com/zh/stories/designing-for-attention</loc>
-    <xhtml:link rel="alternate" hreflang="zh" href="https://example.com/zh/stories/designing-for-attention" />
-    <xhtml:link rel="alternate" hreflang="en" href="https://example.com/en/stories/designing-for-attention" />
+    <loc>https://omniblog.mibgb65.workers.dev/zh/stories/designing-for-attention</loc>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://omniblog.mibgb65.workers.dev/zh/stories/designing-for-attention" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://omniblog.mibgb65.workers.dev/en/stories/designing-for-attention" />
     <lastmod>2026-07-16</lastmod>
   </url>
   <url>
-    <loc>https://example.com/en/stories/designing-for-attention</loc>
-    <xhtml:link rel="alternate" hreflang="en" href="https://example.com/en/stories/designing-for-attention" />
-    <xhtml:link rel="alternate" hreflang="zh" href="https://example.com/zh/stories/designing-for-attention" />
+    <loc>https://omniblog.mibgb65.workers.dev/en/stories/designing-for-attention</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://omniblog.mibgb65.workers.dev/en/stories/designing-for-attention" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://omniblog.mibgb65.workers.dev/zh/stories/designing-for-attention" />
     <lastmod>2026-07-16</lastmod>
   </url>
   <url>
-    <loc>https://example.com/zh/stories/software-with-edges</loc>
-    <xhtml:link rel="alternate" hreflang="zh" href="https://example.com/zh/stories/software-with-edges" />
-    <xhtml:link rel="alternate" hreflang="en" href="https://example.com/en/stories/software-with-edges" />
+    <loc>https://omniblog.mibgb65.workers.dev/zh/stories/software-with-edges</loc>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://omniblog.mibgb65.workers.dev/zh/stories/software-with-edges" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://omniblog.mibgb65.workers.dev/en/stories/software-with-edges" />
     <lastmod>2026-06-30</lastmod>
   </url>
   <url>
-    <loc>https://example.com/en/stories/software-with-edges</loc>
-    <xhtml:link rel="alternate" hreflang="en" href="https://example.com/en/stories/software-with-edges" />
-    <xhtml:link rel="alternate" hreflang="zh" href="https://example.com/zh/stories/software-with-edges" />
+    <loc>https://omniblog.mibgb65.workers.dev/en/stories/software-with-edges</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://omniblog.mibgb65.workers.dev/en/stories/software-with-edges" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://omniblog.mibgb65.workers.dev/zh/stories/software-with-edges" />
     <lastmod>2026-06-30</lastmod>
   </url>
   <url>
-    <loc>https://example.com/zh/stories/reading-at-human-speed</loc>
-    <xhtml:link rel="alternate" hreflang="zh" href="https://example.com/zh/stories/reading-at-human-speed" />
-    <xhtml:link rel="alternate" hreflang="en" href="https://example.com/en/stories/reading-at-human-speed" />
+    <loc>https://omniblog.mibgb65.workers.dev/zh/stories/reading-at-human-speed</loc>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://omniblog.mibgb65.workers.dev/zh/stories/reading-at-human-speed" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://omniblog.mibgb65.workers.dev/en/stories/reading-at-human-speed" />
     <lastmod>2026-06-12</lastmod>
   </url>
   <url>
-    <loc>https://example.com/en/stories/reading-at-human-speed</loc>
-    <xhtml:link rel="alternate" hreflang="en" href="https://example.com/en/stories/reading-at-human-speed" />
-    <xhtml:link rel="alternate" hreflang="zh" href="https://example.com/zh/stories/reading-at-human-speed" />
+    <loc>https://omniblog.mibgb65.workers.dev/en/stories/reading-at-human-speed</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://omniblog.mibgb65.workers.dev/en/stories/reading-at-human-speed" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://omniblog.mibgb65.workers.dev/zh/stories/reading-at-human-speed" />
     <lastmod>2026-06-12</lastmod>
   </url>
 </urlset>
